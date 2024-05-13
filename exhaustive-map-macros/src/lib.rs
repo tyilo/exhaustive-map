@@ -59,17 +59,14 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
             .clone()
             .map(|i| Ident::new(&format!("T{i}"), Span::call_site()))
             .collect();
-        let idents2 = idents.clone();
-        let idents3 = idents.clone();
-        let idents4 = idents.clone();
 
         let rev_indices = indices.clone().map(Index::from).rev();
         let rev_idents = idents.iter().rev();
 
         res.push(
             quote! {
-                impl <#( #idents: exhaustive_map::Finite ),*> exhaustive_map::Finite for (#( #idents2, )*) {
-                    const INHABITANTS: usize = 1 #( * #idents3::INHABITANTS )*;
+                impl <#( #idents: exhaustive_map::Finite ),*> exhaustive_map::Finite for (#( #idents, )*) {
+                    const INHABITANTS: usize = 1 #( * #idents::INHABITANTS )*;
 
                     fn to_usize(&self) -> usize {
                         let mut res = 0;
@@ -86,8 +83,8 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
                         }
                         Some((#(
                             {
-                                let v = #idents4::from_usize(i % #idents4::INHABITANTS).unwrap();
-                                i /= #idents4::INHABITANTS;
+                                let v = #idents::from_usize(i % #idents::INHABITANTS).unwrap();
+                                i /= #idents::INHABITANTS;
                                 v
                             },
                         )*))
