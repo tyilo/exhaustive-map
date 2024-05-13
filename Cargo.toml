@@ -13,6 +13,7 @@ categories = ["data-structures"]
 [package]
 name = "exhaustive-map"
 description = "An exhaustive map for types with finite inhabitants"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

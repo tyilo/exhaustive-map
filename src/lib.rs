@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod finite;
 mod map;
 mod range;
@@ -6,14 +8,16 @@ mod range;
 ///
 /// Example:
 /// ```
-/// use exhaustive_map::{Finite, FiniteExt, impl_enum};
+/// use exhaustive_map::{impl_enum, Finite, FiniteExt};
 ///
-/// #[derive(Finite, Debug, PartialEq)]
+/// #[derive(Debug, PartialEq)]
 /// enum Color {
 ///     Red,
 ///     Green,
 ///     Blue,
 /// }
+///
+/// impl_enum!(Color, [Red, Green, Blue]);
 ///
 /// let all: Vec<_> = Color::iter_all().collect();
 /// assert_eq!(all, vec![Color::Red, Color::Green, Color::Blue]);
