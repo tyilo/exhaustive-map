@@ -26,39 +26,24 @@ impl Parse for EnumInput {
 #[proc_macro]
 pub fn __impl_enum(input: TokenStream) -> TokenStream {
     let EnumInput { typ, inhabitants } = parse_macro_input!(input as EnumInput);
-    let inhabitants = inhabitants.into_iter().map(|ident| {
-        let mut typ = typ.clone();
-        typ.segments.push(syn::PathSegment {
-            ident,
-            arguments: syn::PathArguments::None,
-        });
-        typ
-    });
 
-    let elements = inhabitants.len();
-    let inhabitants1 = inhabitants.clone();
-    let i1 = 0..elements;
-    let inhabitants2 = inhabitants;
-    let i2 = 0..elements;
-
-    quote! {
-        impl exhaustive_map::Finite for #typ {
-            const INHABITANTS: usize = #elements;
-
-            fn to_usize(&self) -> usize {
-                match self {
-                    #( #inhabitants1 => #i1 ),*
-                }
-            }
-
-            fn from_usize(i: usize) -> Option<Self> {
-                match i {
-                    #( #i2 => Some(#inhabitants2) ),* ,
-                    _ => None,
-                }
-            }
-        }
-    }
+    impl_finite(
+        &typ,
+        Default::default(),
+        &Data::Enum(syn::DataEnum {
+            enum_token: Default::default(),
+            brace_token: Default::default(),
+            variants: inhabitants
+                .into_iter()
+                .map(|ident| Variant {
+                    attrs: Default::default(),
+                    ident,
+                    fields: Fields::Unit,
+                    discriminant: Default::default(),
+                })
+                .collect(),
+        }),
+    )
     .into()
 }
 
@@ -115,25 +100,24 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     res.into_iter().collect()
 }
 
-#[proc_macro_derive(Finite)]
+#[proc_macro_derive(Finite, attributes(__finite_foreign))]
 pub fn finite_derive(input: TokenStream) -> TokenStream {
-    finite_derive_inner(parse_macro_input!(input as DeriveInput)).into()
+    let input = parse_macro_input!(input as DeriveInput);
+    impl_finite(&input.ident.into(), input.generics, &input.data).into()
 }
 
-fn finite_derive_inner(input: DeriveInput) -> proc_macro2::TokenStream {
-    let name = input.ident;
-
-    let generics = add_trait_bounds(input.generics);
+fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::TokenStream {
+    let generics = add_trait_bounds(generics);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let FiniteImpl {
         inhabitants,
         to_usize,
         from_usize,
-    } = finite_impl(&input.data);
+    } = finite_impl(data);
 
     quote! {
-        impl #impl_generics exhaustive_map::Finite for #name #ty_generics #where_clause {
+        impl #impl_generics exhaustive_map::Finite for #path #ty_generics #where_clause {
             const INHABITANTS: usize = #inhabitants;
 
             fn to_usize(&self) -> usize {
