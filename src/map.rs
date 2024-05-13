@@ -26,7 +26,7 @@ use crate::{
 /// assert_eq!(map[3], 9999);
 /// assert_eq!(map[7], 103);
 /// ```
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExhaustiveMap<K: Finite, V> {
     // Replace with [V; { K::INHABITANTS }] when Rust supports it
     array: Box<[V]>,
