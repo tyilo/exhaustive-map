@@ -1,5 +1,6 @@
 use std::num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8};
 
+pub use exhaustive_map_macros::Finite;
 use exhaustive_map_macros::{impl_enum, impl_tuples};
 
 /// Represents a type that has a finite number of inhabitants.
@@ -12,14 +13,12 @@ use exhaustive_map_macros::{impl_enum, impl_tuples};
 /// ```
 /// use exhaustive_map::{Finite, FiniteExt};
 ///
-/// #[derive(Debug, PartialEq)]
+/// #[derive(Finite, Debug, PartialEq)]
 /// enum Color {
 ///     Red,
 ///     Green,
 ///     Blue,
 /// }
-///
-/// exhaustive_map::impl_enum!(Color, [Red, Green, Blue]);
 ///
 /// assert_eq!(Color::INHABITANTS, 3);
 /// assert_eq!(Color::from_usize(0), Some(Color::Red));
@@ -330,11 +329,11 @@ impl_tuples!(16);
 mod test {
     use std::{
         fmt::Debug,
+        marker::PhantomData,
         num::{NonZeroI16, NonZeroI8, NonZeroU16, NonZeroU8},
     };
 
     use super::*;
-    use crate::Finite;
 
     fn test_all<T: Finite + Debug + PartialEq>(expected_elements: usize) {
         assert_eq!(T::INHABITANTS, expected_elements);
@@ -488,5 +487,114 @@ mod test {
         let i1 = [1u8, 2u8].to_usize();
         let i2 = (1u8, 2u8).to_usize();
         assert_eq!(i1, i2);
+    }
+
+    #[test]
+    fn test_derive_unit_struct() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct UnitStruct;
+        test_all::<UnitStruct>(1);
+    }
+
+    #[test]
+    fn test_derive_empty_tuple_struct() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct EmptyTupleStruct();
+        test_all::<EmptyTupleStruct>(1);
+    }
+
+    #[test]
+    fn test_derive_tuple_struct() {
+        #[allow(dead_code)]
+        #[derive(Finite, Debug, PartialEq)]
+        struct TupleStruct(u8, bool);
+        test_all::<TupleStruct>(256 * 2);
+    }
+
+    #[test]
+    fn test_derive_empty_named_struct() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct EmptyNamedStruct {}
+        test_all::<EmptyNamedStruct>(1);
+    }
+
+    #[test]
+    fn test_derive_named_struct() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Struct {
+            _a: bool,
+            _b: u8,
+            _c: Option<bool>,
+        }
+        test_all::<Struct>(2 * 256 * 3);
+    }
+
+    #[test]
+    fn test_derive_empty_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum EmptyEnum {}
+        test_all::<EmptyEnum>(0);
+    }
+
+    #[test]
+    fn test_derive_simple_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum SimpleEnum {
+            _A,
+            _B,
+            _C,
+        }
+        test_all::<SimpleEnum>(3);
+    }
+
+    #[test]
+    fn test_tuple_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum TupleEnum {
+            _A(u8, bool),
+            _B(()),
+            _C(),
+        }
+        test_all::<TupleEnum>(256 * 2 + 1 + 1);
+    }
+
+    #[test]
+    fn test_derive_struct_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum StructEnum {
+            _A { _a: u8, _b: bool },
+            _B { _c: () },
+            _C {},
+        }
+        test_all::<StructEnum>(256 * 2 + 1 + 1);
+    }
+
+    #[test]
+    fn test_derive_mixed_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum MixedEnum {
+            _A,
+            _B(u8),
+            _C { _a: Option<bool>, _b: u8 },
+        }
+        test_all::<MixedEnum>(1 + 256 + 3 * 256);
+    }
+
+    #[test]
+    fn test_derive_generic() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Generic<T> {
+            _a: Option<T>,
+        }
+        test_all::<Generic<u8>>(257);
+    }
+
+    #[test]
+    fn test_derive_generic_lifetime() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Lifetime<'a> {
+            _a: PhantomData<&'a ()>,
+        }
+        test_all::<Lifetime>(1);
     }
 }
