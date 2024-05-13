@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt::Debug,
     marker::PhantomData,
+    mem::MaybeUninit,
     ops::{Index, IndexMut},
 };
 
@@ -113,6 +114,22 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
     pub fn iter_mut(&mut self) -> IterMut<K, V> {
         IterMut(Self::keys().zip(self.values_mut()))
+    }
+
+    pub fn new_uninit() -> ExhaustiveMap<K, MaybeUninit<V>> {
+        ExhaustiveMap::from_fn(|_| MaybeUninit::uninit())
+    }
+}
+
+impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
+    /// # Safety
+    ///
+    /// All elements must have been initialized.
+    pub unsafe fn assume_init(self) -> ExhaustiveMap<K, V> {
+        ExhaustiveMap {
+            array: std::mem::transmute::<_, Box<[V]>>(self.array),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -248,5 +265,19 @@ impl<K: Finite, V, Q: Borrow<K>> Index<Q> for ExhaustiveMap<K, V> {
 impl<K: Finite, V, Q: Borrow<K>> IndexMut<Q> for ExhaustiveMap<K, V> {
     fn index_mut(&mut self, index: Q) -> &mut Self::Output {
         &mut self.array[K::to_usize(index.borrow())]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_uninit() {
+        let mut m = ExhaustiveMap::<bool, u8>::new_uninit();
+        m[true].write(123);
+        m[false].write(45);
+        let m = unsafe { m.assume_init() };
+        println!("{m:?}");
     }
 }
