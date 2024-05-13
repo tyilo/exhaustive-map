@@ -130,7 +130,7 @@ fn finite_derive_inner(input: DeriveInput) -> proc_macro2::TokenStream {
         inhabitants,
         to_usize,
         from_usize,
-    } = finite_impl(&input.data, &name);
+    } = finite_impl(&input.data);
 
     quote! {
         impl #impl_generics exhaustive_map::Finite for #name #ty_generics #where_clause {
@@ -195,7 +195,7 @@ impl From<Vec<FiniteImpl>> for FiniteImpls {
     }
 }
 
-fn finite_impl(data: &Data, name: &Ident) -> FiniteImpl {
+fn finite_impl(data: &Data) -> FiniteImpl {
     match *data {
         Data::Struct(ref data) => {
             let FiniteImpls {
@@ -251,7 +251,7 @@ fn finite_impl(data: &Data, name: &Ident) -> FiniteImpl {
                     inhabitants: inhabitants_product,
                     to_usize: quote!(0),
                     from_usize: quote! {
-                        Some(#name)
+                        Some(Self)
                     },
                 },
             }
