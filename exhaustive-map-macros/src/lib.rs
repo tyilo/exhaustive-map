@@ -24,7 +24,7 @@ impl Parse for EnumInput {
 }
 
 #[proc_macro]
-pub fn impl_enum(input: TokenStream) -> TokenStream {
+pub fn __impl_enum(input: TokenStream) -> TokenStream {
     let EnumInput { typ, inhabitants } = parse_macro_input!(input as EnumInput);
     let inhabitants = inhabitants.into_iter().map(|ident| {
         let mut typ = typ.clone();
@@ -63,7 +63,7 @@ pub fn impl_enum(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn impl_tuples(input: TokenStream) -> TokenStream {
+pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     let v = parse_macro_input!(input as LitInt);
     let n: usize = v.base10_parse().unwrap();
 

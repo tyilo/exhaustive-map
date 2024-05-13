@@ -1,7 +1,7 @@
 use std::num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8};
 
 pub use exhaustive_map_macros::Finite;
-use exhaustive_map_macros::{impl_enum, impl_tuples};
+use exhaustive_map_macros::{__impl_enum, __impl_tuples};
 
 /// Represents a type that has a finite number of inhabitants.
 ///
@@ -9,7 +9,7 @@ use exhaustive_map_macros::{impl_enum, impl_tuples};
 /// such as `usize`, `isize`, `u64`, `i64` and `f64`,
 /// then `Finite` should not be implemented for the type.
 ///
-/// You can easily implement this type for simple enums using the `impl_enum` macro:
+/// Example:
 /// ```
 /// use exhaustive_map::{Finite, FiniteExt};
 ///
@@ -250,15 +250,15 @@ impl Finite for f32 {
     }
 }
 
-impl_enum!(std::cmp::Ordering, [Less, Equal, Greater]);
-impl_enum!(std::net::Shutdown, [Read, Write, Both]);
-impl_enum!(
+__impl_enum!(std::cmp::Ordering, [Less, Equal, Greater]);
+__impl_enum!(std::net::Shutdown, [Read, Write, Both]);
+__impl_enum!(
     std::num::FpCategory,
     [Nan, Infinite, Zero, Subnormal, Normal]
 );
-impl_enum!(std::sync::mpsc::RecvTimeoutError, [Timeout, Disconnected]);
-impl_enum!(std::sync::mpsc::TryRecvError, [Empty, Disconnected]);
-impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
+__impl_enum!(std::sync::mpsc::RecvTimeoutError, [Timeout, Disconnected]);
+__impl_enum!(std::sync::mpsc::TryRecvError, [Empty, Disconnected]);
+__impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
 
 impl<T: Finite> Finite for Option<T> {
     const INHABITANTS: usize = T::INHABITANTS + 1;
@@ -323,7 +323,7 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
     }
 }
 
-impl_tuples!(16);
+__impl_tuples!(16);
 
 #[cfg(test)]
 mod test {
