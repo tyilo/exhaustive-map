@@ -490,6 +490,11 @@ mod test {
     }
 
     #[test]
+    fn test_std_cmp_ordering() {
+        test_all::<std::cmp::Ordering>(3);
+    }
+
+    #[test]
     fn test_derive_unit_struct() {
         #[derive(Finite, Debug, PartialEq)]
         struct UnitStruct;
