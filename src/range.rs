@@ -88,11 +88,23 @@ impl<const A: usize, const B: usize> InRangeBounds for InRangeInclusive<A, B> {
     }
 }
 
-impl<T: InRangeBounds> Finite for T {
-    const INHABITANTS: usize = T::INHABITANTS;
+impl<const A: usize, const B: usize> Finite for InRange<A, B> {
+    const INHABITANTS: usize = <Self as InRangeBounds>::INHABITANTS;
 
     fn to_usize(&self) -> usize {
-        self.get() - T::MIN
+        self.get() - Self::MIN
+    }
+
+    fn from_usize(i: usize) -> Option<Self> {
+        Self::new_from_start_offset(i)
+    }
+}
+
+impl<const A: usize, const B: usize> Finite for InRangeInclusive<A, B> {
+    const INHABITANTS: usize = <Self as InRangeBounds>::INHABITANTS;
+
+    fn to_usize(&self) -> usize {
+        self.get() - Self::MIN
     }
 
     fn from_usize(i: usize) -> Option<Self> {

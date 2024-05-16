@@ -1,4 +1,8 @@
-use std::num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8};
+use std::{
+    num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8},
+    rc::Rc,
+    sync::Arc,
+};
 
 pub use exhaustive_map_macros::Finite;
 use exhaustive_map_macros::{__impl_enum, __impl_tuples};
@@ -295,6 +299,26 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
 }
 
 __impl_tuples!(16);
+
+macro_rules! impl_deref {
+    ($type:path) => {
+        impl<T: Finite> Finite for $type {
+            const INHABITANTS: usize = T::INHABITANTS;
+
+            fn to_usize(&self) -> usize {
+                (**self).to_usize()
+            }
+
+            fn from_usize(i: usize) -> Option<Self> {
+                Some(T::from_usize(i)?.into())
+            }
+        }
+    };
+}
+
+impl_deref!(Box<T>);
+impl_deref!(Rc<T>);
+impl_deref!(Arc<T>);
 
 #[derive(Finite)]
 #[__finite_foreign(Option)]
