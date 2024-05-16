@@ -65,7 +65,7 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
 
         res.push(
             quote! {
-                impl <#( #idents: exhaustive_map::Finite ),*> exhaustive_map::Finite for (#( #idents, )*) {
+                impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite for (#( #idents, )*) {
                     const INHABITANTS: usize = 1 #( * #idents::INHABITANTS )*;
 
                     fn to_usize(&self) -> usize {
@@ -130,7 +130,7 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
     } = finite_impl(data);
 
     quote! {
-        impl #impl_generics exhaustive_map::Finite for #path #ty_generics #where_clause {
+        impl #impl_generics ::exhaustive_map::Finite for #path #ty_generics #where_clause {
             const INHABITANTS: usize = #inhabitants;
 
             #[allow(non_snake_case)]
@@ -372,15 +372,15 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
         }
     };
     let inhabitants = quote_spanned! { field.span() =>
-        <#ty as exhaustive_map::Finite>::INHABITANTS
+        <#ty as ::exhaustive_map::Finite>::INHABITANTS
     };
     FiniteImpl {
         to_usize: quote_spanned! { field.span() =>
-            <#ty as exhaustive_map::Finite>::to_usize(#access)
+            <#ty as ::exhaustive_map::Finite>::to_usize(#access)
         },
         from_usize: quote_spanned! { field.span() =>
             {
-                let v = <#ty as exhaustive_map::Finite>::from_usize(i % #inhabitants).unwrap();
+                let v = <#ty as ::exhaustive_map::Finite>::from_usize(i % #inhabitants).unwrap();
                 i /= #inhabitants;
                 v
             }
