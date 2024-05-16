@@ -253,7 +253,7 @@ __impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
 macro_rules! impl_from {
     ($type:path, $from:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = <$from as Finite>::INHABITANTS - 1;
+            const INHABITANTS: usize = <$from as Finite>::INHABITANTS;
 
             fn to_usize(&self) -> usize {
                 <$from>::from(*self).to_usize()
@@ -523,6 +523,12 @@ mod test {
         let i1 = [1u8, 2u8].to_usize();
         let i2 = (1u8, 2u8).to_usize();
         assert_eq!(i1, i2);
+    }
+
+    #[test]
+    #[cfg_attr(debug_assertions, ignore)]
+    fn test_ipv4_address() {
+        test_all::<std::net::Ipv4Addr>(256usize.pow(4));
     }
 
     #[test]
