@@ -65,6 +65,7 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
 
         res.push(
             quote! {
+                #[automatically_derived]
                 impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite for (#( #idents, )*) {
                     const INHABITANTS: usize = 1 #( * #idents::INHABITANTS )*;
 
@@ -130,6 +131,7 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
     } = finite_impl(data);
 
     quote! {
+        #[automatically_derived]
         impl #impl_generics ::exhaustive_map::Finite for #path #ty_generics #where_clause {
             const INHABITANTS: usize = #inhabitants;
 
@@ -139,7 +141,6 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
                 #to_usize
             }
 
-            #[allow(unused_assignments)]
             #[allow(clippy::let_unit_value)]
             #[allow(clippy::modulo_one)]
             fn from_usize(mut i: usize) -> Option<Self> {
