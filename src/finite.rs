@@ -260,23 +260,11 @@ __impl_enum!(std::sync::mpsc::RecvTimeoutError, [Timeout, Disconnected]);
 __impl_enum!(std::sync::mpsc::TryRecvError, [Empty, Disconnected]);
 __impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
 
-impl<T: Finite> Finite for Option<T> {
-    const INHABITANTS: usize = T::INHABITANTS + 1;
-
-    fn to_usize(&self) -> usize {
-        match self {
-            Some(v) => v.to_usize(),
-            None => T::INHABITANTS,
-        }
-    }
-
-    fn from_usize(i: usize) -> Option<Self> {
-        match i.cmp(&T::INHABITANTS) {
-            std::cmp::Ordering::Less => Some(Some(T::from_usize(i)?)),
-            std::cmp::Ordering::Equal => Some(None),
-            std::cmp::Ordering::Greater => None,
-        }
-    }
+#[derive(Finite)]
+#[finite_foreign(Option)]
+enum _Option<T> {
+    None,
+    Some(T),
 }
 
 macro_rules! impl_from {

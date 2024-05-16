@@ -97,10 +97,26 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     res.into_iter().collect()
 }
 
-#[proc_macro_derive(Finite, attributes(__finite_foreign))]
+#[proc_macro_derive(Finite, attributes(finite_foreign))]
 pub fn finite_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    impl_finite(&input.ident.into(), input.generics, &input.data).into()
+
+    let foreign_attrs: Vec<_> = input
+        .attrs
+        .iter()
+        .filter(|attr| attr.path().is_ident("finite_foreign"))
+        .collect();
+
+    let path = match foreign_attrs[..] {
+        [] => input.ident.into(),
+        [attr] => match attr.parse_args() {
+            Ok(path) => path,
+            Err(e) => return e.to_compile_error().into(),
+        },
+        _ => panic!("Only one `finite_foreign` attribute allowed"),
+    };
+
+    impl_finite(&path, input.generics, &input.data).into()
 }
 
 fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::TokenStream {
