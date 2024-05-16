@@ -97,14 +97,14 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     res.into_iter().collect()
 }
 
-#[proc_macro_derive(Finite, attributes(finite_foreign))]
+#[proc_macro_derive(Finite, attributes(__finite_foreign))]
 pub fn finite_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let foreign_attrs: Vec<_> = input
         .attrs
         .iter()
-        .filter(|attr| attr.path().is_ident("finite_foreign"))
+        .filter(|attr| attr.path().is_ident("__finite_foreign"))
         .collect();
 
     let path = match foreign_attrs[..] {

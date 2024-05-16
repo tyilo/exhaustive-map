@@ -250,13 +250,6 @@ __impl_enum!(std::sync::mpsc::RecvTimeoutError, [Timeout, Disconnected]);
 __impl_enum!(std::sync::mpsc::TryRecvError, [Empty, Disconnected]);
 __impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
 
-#[derive(Finite)]
-#[finite_foreign(Option)]
-enum _Option<T> {
-    None,
-    Some(T),
-}
-
 macro_rules! impl_from {
     ($type:path, $from:path) => {
         impl Finite for $type {
@@ -302,6 +295,71 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
 }
 
 __impl_tuples!(16);
+
+#[derive(Finite)]
+#[__finite_foreign(Option)]
+enum _Option<T> {
+    None,
+    Some(T),
+}
+
+#[derive(Finite)]
+#[__finite_foreign(Result)]
+enum _Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::task::Poll)]
+enum _Poll<T> {
+    Ready(T),
+    Pending,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::Bound)]
+enum _Bound<T> {
+    Included(T),
+    Excluded(T),
+    Unbounded,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::ControlFlow)]
+enum _ControlFlow<B, C> {
+    Continue(C),
+    Break(B),
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::Range)]
+struct _Range<Idx> {
+    start: Idx,
+    end: Idx,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::RangeFrom)]
+struct _RangeFrom<Idx> {
+    start: Idx,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::RangeTo)]
+struct _RangeTo<Idx> {
+    end: Idx,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::RangeToInclusive)]
+struct _RangeToInclusive<Idx> {
+    end: Idx,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::ops::RangeFull)]
+struct _RangeFull;
 
 #[cfg(test)]
 mod test {
