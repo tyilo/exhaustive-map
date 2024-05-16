@@ -586,6 +586,61 @@ mod test {
     }
 
     #[test]
+    fn test_derive_struct_with_non_clone_field() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct NonCopy(u8);
+
+        #[derive(Finite, Debug, PartialEq)]
+        struct Outer {
+            inner: NonCopy,
+        }
+
+        test_all::<Outer>(256);
+    }
+
+    #[test]
+    fn test_derive_enum_with_non_clone_field() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct NonCopy(u8);
+
+        #[derive(Finite, Debug, PartialEq)]
+        enum Outer {
+            A(NonCopy),
+            B { inner: NonCopy },
+        }
+
+        test_all::<Outer>(2 * 256);
+    }
+
+    #[test]
+    fn test_derive_struct_with_names_from_implementation() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Struct {
+            v: bool,
+            i: bool,
+            res: bool,
+            r#type: bool,
+        }
+
+        test_all::<Struct>(2usize.pow(4));
+    }
+
+    #[test]
+    fn test_derive_enum_with_names_from_implementation() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum Enum {
+            Variant {
+                v: bool,
+                i: bool,
+                res: bool,
+                r#type: bool,
+            },
+        }
+
+        test_all::<Enum>(2usize.pow(4));
+    }
+
+    #[test]
     fn test_derive_generic() {
         #[derive(Finite, Debug, PartialEq)]
         struct Generic<T> {
