@@ -4,7 +4,7 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::{
     bracketed, parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated,
     spanned::Spanned, Data, DeriveInput, Field, Fields, GenericParam, Generics, Ident, Index,
-    LitInt, Path, Token, Variant,
+    LitInt, Path, Token, TypeParamBound, Variant,
 };
 
 struct EnumInput {
@@ -76,7 +76,9 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
                         )*
                         res
                     }
+                }
 
+                impl <#( #idents: exhaustive_map::FromUsize ),*> exhaustive_map::FromUsize for (#( #idents, )*) {
                     fn from_usize(mut i: usize) -> Option<Self> {
                         if i >= Self::INHABITANTS {
                             return None;
@@ -120,7 +122,7 @@ pub fn finite_derive(input: TokenStream) -> TokenStream {
 }
 
 fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::TokenStream {
-    let generics = add_trait_bounds(generics);
+    let generics = add_trait_bounds(generics, parse_quote!(::exhaustive_map::Finite));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let FiniteImpl {
@@ -129,7 +131,7 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
         from_usize,
     } = finite_impl(data);
 
-    quote! {
+    let finite_impl = quote! {
         impl #impl_generics exhaustive_map::Finite for #path #ty_generics #where_clause {
             const INHABITANTS: usize = #inhabitants;
 
@@ -138,7 +140,14 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
                 let v = self;
                 #to_usize
             }
+        }
+    };
 
+    let generics = add_trait_bounds(generics, parse_quote!(::exhaustive_map::FromUsize));
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let from_usize_impl = quote! {
+        impl #impl_generics exhaustive_map::FromUsize for #path #ty_generics #where_clause {
             #[allow(unused_assignments)]
             #[allow(clippy::let_unit_value)]
             #[allow(clippy::modulo_one)]
@@ -149,15 +158,19 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
                 #from_usize
             }
         }
+    };
+
+    quote! {
+        #finite_impl
+        #from_usize_impl
     }
 }
 
-fn add_trait_bounds(mut generics: Generics) -> Generics {
+fn add_trait_bounds(mut generics: Generics, bound: TypeParamBound) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param
-                .bounds
-                .push(parse_quote!(::exhaustive_map::Finite));
+            type_param.bounds.push(bound.clone())
+            //.push(parse_quote!(::exhaustive_map::Finite));
         }
     }
     generics
@@ -380,7 +393,7 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
         },
         from_usize: quote_spanned! { field.span() =>
             {
-                let v = <#ty as exhaustive_map::Finite>::from_usize(i % #inhabitants).unwrap();
+                let v = <#ty as exhaustive_map::FromUsize>::from_usize(i % #inhabitants).unwrap();
                 i /= #inhabitants;
                 v
             }

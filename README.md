@@ -27,7 +27,7 @@ assert_eq!(map[7], 103);
 The key type must implement the `Finite` trait.
 You can implement this for your own types using derive:
 ```rust
-use exhaustive_map::{Finite, FiniteExt};
+use exhaustive_map::{Finite, FromUsize, FromUsizeExt};
 
 #[derive(Finite, Debug, PartialEq)]
 enum Color {
@@ -43,7 +43,7 @@ assert_eq!(all, vec![Color::Red, Color::Green, Color::Blue]);
 The `Finite` trait can also be implemented manually:
 or manually:
 ```rust
-use exhaustive_map::Finite;
+use exhaustive_map::{Finite, FromUsize};
 
 #[derive(Debug, PartialEq)]
 enum Color {
@@ -62,7 +62,9 @@ impl Finite for Color {
             Self::Blue => 2,
         }
     }
+}
 
+impl FromUsize for Color {
     fn from_usize(i: usize) -> Option<Self> {
         Some(match i {
             0 => Self::Red,

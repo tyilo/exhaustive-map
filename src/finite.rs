@@ -15,7 +15,7 @@ use exhaustive_map_macros::{__impl_enum, __impl_tuples};
 ///
 /// Example:
 /// ```
-/// use exhaustive_map::{Finite, FiniteExt};
+/// use exhaustive_map::{Finite, FromUsize, FromUsizeExt};
 ///
 /// #[derive(Finite, Debug, PartialEq)]
 /// enum Color {
@@ -39,15 +39,17 @@ pub trait Finite: Sized {
 
     /// Should return a number in the range `0..INHABITANTS`.
     fn to_usize(&self) -> usize;
+}
 
+pub trait FromUsize: Finite {
     /// Should be the inverse function of `to_usize`.
     ///
     /// This should return `Some` if and only if `i < T::INHABITANTS`.
     fn from_usize(i: usize) -> Option<Self>;
 }
 
-/// An extension for [`Finite`] providing the [`iter_all`](FiniteExt::iter_all) method.
-pub trait FiniteExt: Finite {
+/// An extension for [`FromUsie`] providing the [`iter_all`](FromUsizeExt::iter_all) method.
+pub trait FromUsizeExt: FromUsize {
     /// An iterator over all inhabitants of the type, ordered by the order provided by [`Finite`].
     fn iter_all() -> IterAll<Self> {
         IterAll((0..Self::INHABITANTS).map(|i| {
@@ -56,7 +58,7 @@ pub trait FiniteExt: Finite {
     }
 }
 
-impl<T: Finite> FiniteExt for T {}
+impl<T: FromUsize> FromUsizeExt for T {}
 
 /// An owned iterator over all inhabitants of a type implementing [`Finite`].
 ///
@@ -84,7 +86,9 @@ macro_rules! impl_singleton {
             fn to_usize(&self) -> usize {
                 0
             }
+        }
 
+        impl FromUsize for $type {
             fn from_usize(i: usize) -> Option<Self> {
                 match i {
                     0 => Some($value),
@@ -105,7 +109,9 @@ impl<T: ?Sized> Finite for std::marker::PhantomData<T> {
     fn to_usize(&self) -> usize {
         0
     }
+}
 
+impl<T: ?Sized> FromUsize for std::marker::PhantomData<T> {
     fn from_usize(i: usize) -> Option<Self> {
         match i {
             0 => Some(Self),
@@ -120,7 +126,9 @@ impl Finite for bool {
     fn to_usize(&self) -> usize {
         *self as usize
     }
+}
 
+impl FromUsize for bool {
     fn from_usize(i: usize) -> Option<Self> {
         match i {
             0 => Some(false),
@@ -138,7 +146,9 @@ macro_rules! impl_uprim {
             fn to_usize(&self) -> usize {
                 *self as usize
             }
+        }
 
+        impl FromUsize for $type {
             fn from_usize(i: usize) -> Option<Self> {
                 i.try_into().ok()
             }
@@ -158,9 +168,11 @@ macro_rules! impl_iprim {
             fn to_usize(&self) -> usize {
                 (*self as $utype).to_usize()
             }
+        }
 
+        impl FromUsize for $itype {
             fn from_usize(i: usize) -> Option<Self> {
-                <$utype as Finite>::from_usize(i).map(|v| v as Self)
+                <$utype as FromUsize>::from_usize(i).map(|v| v as Self)
             }
         }
     };
@@ -178,7 +190,9 @@ macro_rules! impl_unonzero {
             fn to_usize(&self) -> usize {
                 self.get() as usize - 1
             }
+        }
 
+        impl FromUsize for $type {
             fn from_usize(i: usize) -> Option<Self> {
                 <$type>::new((i + 1).try_into().ok()?)
             }
@@ -198,7 +212,9 @@ macro_rules! impl_inonzero {
             fn to_usize(&self) -> usize {
                 (self.get() as $itype).to_usize() - 1
             }
+        }
 
+        impl FromUsize for $nonzero_type {
             fn from_usize(i: usize) -> Option<Self> {
                 <$nonzero_type>::new(<$itype>::from_usize(i + 1)?)
             }
@@ -223,7 +239,9 @@ impl Finite for char {
         }
         v
     }
+}
 
+impl FromUsize for char {
     fn from_usize(mut i: usize) -> Option<Self> {
         if i >= CHAR_GAP_START {
             i += CHAR_GAP_SIZE;
@@ -238,7 +256,9 @@ impl Finite for f32 {
     fn to_usize(&self) -> usize {
         self.to_bits().to_usize()
     }
+}
 
+impl FromUsize for f32 {
     fn from_usize(i: usize) -> Option<Self> {
         u32::from_usize(i).map(Self::from_bits)
     }
@@ -262,7 +282,9 @@ macro_rules! impl_from {
             fn to_usize(&self) -> usize {
                 <$from>::from(*self).to_usize()
             }
+        }
 
+        impl FromUsize for $type {
             fn from_usize(i: usize) -> Option<Self> {
                 Self::try_from(<$from>::from_usize(i)?).ok()
             }
@@ -283,7 +305,9 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
         }
         res
     }
+}
 
+impl<const N: usize, T: FromUsize> FromUsize for [T; N] {
     fn from_usize(mut i: usize) -> Option<Self> {
         if i >= Self::INHABITANTS {
             None
@@ -300,15 +324,33 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
 
 __impl_tuples!(16);
 
+impl<'a, T: Finite> Finite for &'a T {
+    const INHABITANTS: usize = T::INHABITANTS;
+
+    fn to_usize(&self) -> usize {
+        (**self).to_usize()
+    }
+}
+
+impl<'a, T: Finite> Finite for &'a mut T {
+    const INHABITANTS: usize = T::INHABITANTS;
+
+    fn to_usize(&self) -> usize {
+        (**self).to_usize()
+    }
+}
+
 macro_rules! impl_deref {
-    ($type:path) => {
+    ($type:ty) => {
         impl<T: Finite> Finite for $type {
             const INHABITANTS: usize = T::INHABITANTS;
 
             fn to_usize(&self) -> usize {
                 (**self).to_usize()
             }
+        }
 
+        impl<T: FromUsize> FromUsize for $type {
             fn from_usize(i: usize) -> Option<Self> {
                 Some(T::from_usize(i)?.into())
             }
@@ -395,7 +437,7 @@ mod test {
 
     use super::*;
 
-    fn test_all<T: Finite + Debug + PartialEq>(expected_elements: usize) {
+    fn test_all<T: FromUsize + Debug + PartialEq>(expected_elements: usize) {
         assert_eq!(T::INHABITANTS, expected_elements);
 
         for i in 0..T::INHABITANTS {
