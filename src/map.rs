@@ -104,6 +104,24 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         std::mem::take(&mut self[k])
     }
 
+    /// Change the values of the stored values via a mapping function.
+    ///
+    /// ```
+    /// use exhaustive_map::ExhaustiveMap;
+    ///
+    /// let bool_to_int = ExhaustiveMap::from_fn(|k| if k { 1 } else { 0 });
+    /// let bool_to_int_string = bool_to_int.map_values(|v| v.to_string());
+    ///
+    /// assert_eq!(bool_to_int_string[false], "0");
+    /// assert_eq!(bool_to_int_string[true], "1");
+    /// ```
+    pub fn map_values<U>(self, f: impl FnMut(V) -> U) -> ExhaustiveMap<K, U> {
+        ExhaustiveMap {
+            array: self.into_values().map(f).collect(),
+            _phantom: PhantomData,
+        }
+    }
+
     /// An iterator visiting all keys in the order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
