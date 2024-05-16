@@ -67,17 +67,7 @@ impl<T> Iterator for IterAll<T> {
     }
 }
 
-impl Finite for std::convert::Infallible {
-    const INHABITANTS: usize = 0;
-
-    fn to_usize(&self) -> usize {
-        match *self {}
-    }
-
-    fn from_usize(_: usize) -> Option<Self> {
-        None
-    }
-}
+__impl_enum!(std::convert::Infallible, []);
 
 macro_rules! impl_singleton {
     ($type:path) => {
