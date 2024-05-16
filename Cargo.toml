@@ -11,7 +11,7 @@ categories = ["data-structures"]
 
 [package]
 name = "exhaustive-map"
-version = "0.2.0"
+version = "0.2.1"
 description = "An exhaustive map for types with finite inhabitants"
 readme = "README.md"
 edition.workspace = true
@@ -22,4 +22,4 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-exhaustive-map-macros = { version = "0.2.0", path = "exhaustive-map-macros" }
+exhaustive-map-macros = { version = "0.2.1", path = "exhaustive-map-macros" }
