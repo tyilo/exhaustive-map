@@ -158,12 +158,12 @@ struct FiniteImpls {
     from_usize: Vec<proc_macro2::TokenStream>,
 }
 
-impl From<Vec<FiniteImpl>> for FiniteImpls {
-    fn from(value: Vec<FiniteImpl>) -> Self {
+impl FromIterator<FiniteImpl> for FiniteImpls {
+    fn from_iter<T: IntoIterator<Item = FiniteImpl>>(iter: T) -> Self {
         let mut inhabitants = vec![];
         let mut to_usize = vec![];
         let mut from_usize = vec![];
-        for imp in value {
+        for imp in iter {
             inhabitants.push(imp.inhabitants);
             to_usize.push(imp.to_usize);
             from_usize.push(imp.from_usize);
@@ -238,12 +238,11 @@ fn finite_impl(data: &Data) -> FiniteImpl {
             }
         }
         Data::Enum(ref data) => {
-            let impls: Vec<_> = data.variants.iter().map(finite_impl_for_variant).collect();
             let FiniteImpls {
                 inhabitants,
                 to_usize,
                 from_usize,
-            } = impls.into();
+            } = data.variants.iter().map(finite_impl_for_variant).collect();
 
             FiniteImpl {
                 inhabitants: quote!(0 #(+ #inhabitants)*),
@@ -359,11 +358,10 @@ fn finite_impl_for_variant(variant: &Variant) -> FiniteImpl {
 }
 
 fn finite_impls_for_fields<'a>(fields: impl Iterator<Item = &'a Field>) -> FiniteImpls {
-    let impls: Vec<_> = fields
+    fields
         .enumerate()
         .map(|(i, f)| finite_impl_for_field(f, i))
-        .collect();
-    impls.into()
+        .collect()
 }
 
 fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
