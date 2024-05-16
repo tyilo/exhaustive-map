@@ -45,6 +45,31 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         }
     }
 
+    /// Creates a map by prociding a mapping function from `usize` to `V`.
+    /// The map is filled according to the [`Finite`] implementation of `K`.
+    ///
+    /// ```
+    /// use exhaustive_map::{ExhaustiveMap, Finite};
+    ///
+    /// #[derive(Finite, Debug)]
+    /// enum Color {
+    ///     Red,
+    ///     Green,
+    ///     Blue,
+    /// }
+    ///
+    /// let map = ExhaustiveMap::from_usize_fn(|i| i);
+    /// assert_eq!(map[Color::Red], 0);
+    /// assert_eq!(map[Color::Green], 1);
+    /// assert_eq!(map[Color::Blue], 2);
+    /// ```
+    pub fn from_usize_fn(f: impl FnMut(usize) -> V) -> Self {
+        Self {
+            array: (0..K::INHABITANTS).map(f).collect(),
+            _phantom: PhantomData,
+        }
+    }
+
     /// Returns the number of elements in the map.
     ///
     /// Always equal to `K::INHABITANTS`.
@@ -116,8 +141,12 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         IterMut(Self::keys().zip(self.values_mut()))
     }
 
+    /// Creates a map with [`MaybeUninit`] values.
+    ///
+    /// After every value have been initialized [`assume_init`](ExhaustiveMap::assume_init) can be
+    /// called to obtain a map with values of type `V`.
     pub fn new_uninit() -> ExhaustiveMap<K, MaybeUninit<V>> {
-        ExhaustiveMap::from_fn(|_| MaybeUninit::uninit())
+        ExhaustiveMap::from_usize_fn(|_| MaybeUninit::uninit())
     }
 }
 
