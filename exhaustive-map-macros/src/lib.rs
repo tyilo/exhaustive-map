@@ -180,17 +180,13 @@ impl FromIterator<FiniteImpl> for FiniteImpls {
 fn finite_impl(data: &Data) -> FiniteImpl {
     match *data {
         Data::Struct(ref data) => {
-            let FiniteImpls {
-                mut inhabitants,
-                mut to_usize,
+            let FiniteImpl {
+                inhabitants,
+                to_usize,
                 from_usize,
-            } = finite_impls_for_fields(data.fields.iter());
-            let inhabitants_product = quote!(1 #(* #inhabitants)*);
+            } = finite_impl_for_fields(&data.fields, quote!(Self));
 
-            inhabitants.reverse();
-            to_usize.reverse();
-
-            match data.fields {
+            let to_usize = match data.fields {
                 Fields::Named(_) => {
                     let names: Vec<_> = data
                         .fields
@@ -198,45 +194,22 @@ fn finite_impl(data: &Data) -> FiniteImpl {
                         .map(|f| f.ident.as_ref().unwrap())
                         .collect();
                     let mapped_names = names.iter().map(|name| mapped_field_name(name));
-                    FiniteImpl {
-                        inhabitants: inhabitants_product,
-                        to_usize: quote! {
-                            {
-                                let Self { #(#names: #mapped_names,)* } = v;
-                                let mut res = 0;
-                                #(
-                                    res *= #inhabitants;
-                                    res += #to_usize;
-                                )*
-                                res
-                            }
-                        },
-                        from_usize: quote! {
-                            Some(Self { #(#names: #from_usize,)* })
-                        },
+
+                    quote! {
+                        {
+                            let Self { #(#names: #mapped_names,)* } = v;
+                            #to_usize
+                        }
                     }
                 }
-                Fields::Unnamed(_) => FiniteImpl {
-                    inhabitants: inhabitants_product,
-                    to_usize: quote! {
-                        let mut res = 0;
-                        #(
-                            res *= #inhabitants;
-                            res += #to_usize;
-                        )*
-                        res
-                    },
-                    from_usize: quote! {
-                        Some(Self(#(#from_usize,)*))
-                    },
-                },
-                Fields::Unit => FiniteImpl {
-                    inhabitants: inhabitants_product,
-                    to_usize: quote!(0),
-                    from_usize: quote! {
-                        Some(Self)
-                    },
-                },
+                Fields::Unnamed(_) => to_usize,
+                Fields::Unit => to_usize,
+            };
+
+            FiniteImpl {
+                inhabitants,
+                to_usize,
+                from_usize,
             }
         }
         Data::Enum(ref data) => {
@@ -273,23 +246,19 @@ fn finite_impl(data: &Data) -> FiniteImpl {
                 },
             }
         }
-        Data::Union(_) => unimplemented!(),
+        Data::Union(_) => panic!("Finite can't be derived for unions"),
     }
 }
 
 fn finite_impl_for_variant(variant: &Variant, offset: proc_macro2::TokenStream) -> FiniteImpl {
     let name = &variant.ident;
-    let FiniteImpls {
-        mut inhabitants,
-        mut to_usize,
+    let FiniteImpl {
+        inhabitants,
+        to_usize,
         from_usize,
-    } = finite_impls_for_fields(variant.fields.iter());
-    let inhabitants_product = quote!(1 #(* #inhabitants)*);
+    } = finite_impl_for_fields(&variant.fields, quote!(Self::#name));
 
-    inhabitants.reverse();
-    to_usize.reverse();
-
-    match variant.fields {
+    let to_usize = match variant.fields {
         Fields::Named(_) => {
             let names: Vec<_> = variant
                 .fields
@@ -298,58 +267,75 @@ fn finite_impl_for_variant(variant: &Variant, offset: proc_macro2::TokenStream) 
                 .collect();
             let mapped_names = names.iter().map(|name| mapped_field_name(name));
 
-            FiniteImpl {
-                inhabitants: inhabitants_product,
-                to_usize: quote! {
-                    Self::#name { #(#names: ref #mapped_names,)* } => {
-                        let mut res = 0;
-                        #(
-                            res *= #inhabitants;
-                            res += #to_usize;
-                        )*
-                        res + #offset
-                    }
-                },
-                from_usize: quote! {
-                    Some(Self::#name { #(#names: #from_usize,)* })
-                },
+            quote! {
+                Self::#name { #(#names: ref #mapped_names,)* } => {
+                    (#to_usize + #offset)
+                }
             }
         }
         Fields::Unnamed(_) => {
             let field_names: Vec<_> = (0..variant.fields.len())
                 .map(|i| Ident::new(&format!("v_{i}"), Span::call_site()))
                 .collect();
-            FiniteImpl {
-                inhabitants: inhabitants_product,
-                to_usize: quote! {
-                    Self::#name(#(ref #field_names,)*) => {
-                        let v = (#(#field_names,)*);
-                        let mut res = 0;
-                        #(
-                            res *= #inhabitants;
-                            res += #to_usize;
-                        )*
-                        res + #offset
-                    }
-                },
-                from_usize: quote! {
-                    Some(Self::#name(#(#from_usize,)*))
-                },
+            quote! {
+                Self::#name(#(ref #field_names,)*) => {
+                    let v = (#(#field_names,)*);
+                    (#to_usize + #offset)
+                }
             }
         }
-        Fields::Unit => FiniteImpl {
-            inhabitants: inhabitants_product,
-            to_usize: quote! {
-                Self::#name => #offset
-            },
-            from_usize: quote! {
-                if i == 0 {
-                    Some(Self::#name)
-                } else {
-                    None
-                }
-            },
+        Fields::Unit => quote! {
+            Self::#name => #offset
         },
+    };
+
+    FiniteImpl {
+        inhabitants,
+        to_usize,
+        from_usize,
+    }
+}
+
+fn finite_impl_for_fields(fields: &Fields, constructor: proc_macro2::TokenStream) -> FiniteImpl {
+    let FiniteImpls {
+        mut inhabitants,
+        mut to_usize,
+        from_usize,
+    } = finite_impls_for_fields(fields.iter());
+
+    inhabitants.reverse();
+    to_usize.reverse();
+
+    let from_usize = match fields {
+        Fields::Named(_) => {
+            let names: Vec<_> = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect();
+            quote! {
+                Some(#constructor { #(#names: #from_usize,)* })
+            }
+        }
+        Fields::Unnamed(_) => {
+            quote! {
+                Some(#constructor(#(#from_usize,)*))
+            }
+        }
+        Fields::Unit => quote! {
+            Some(#constructor)
+        },
+    };
+
+    FiniteImpl {
+        inhabitants: quote!(1 #(* #inhabitants)*),
+        to_usize: quote! {
+            {
+                let mut res = 0;
+                #(
+                    res *= #inhabitants;
+                    res += #to_usize;
+                )*
+                res
+            }
+        },
+        from_usize,
     }
 }
 
