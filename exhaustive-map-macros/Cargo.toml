@@ -1,7 +1,7 @@
 [package]
 name = "exhaustive-map-macros"
+version = "0.2.0"
 description = "Proc macros for the exhaustive-map crate"
-version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
