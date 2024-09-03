@@ -19,7 +19,7 @@ pub trait InRangeBounds: Copy + Sized {
     /// The number of values representable.
     const INHABITANTS: usize;
 
-    /// Creates a value without checking whether the value is in range. This results in undefined behaviour if the value is not in range.
+    /// Creates a value without checking whether the value is in range. This results in undefined behavior if the value is not in range.
     ///
     /// # Safety
     /// `i` must satisfy `Self::Start <= i` and `i < Self::MIN + Self::INHABITANTS`.

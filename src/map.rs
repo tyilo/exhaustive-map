@@ -45,7 +45,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         }
     }
 
-    /// Creates a map by prociding a mapping function from `usize` to `V`.
+    /// Creates a map by providing a mapping function from `usize` to `V`.
     /// The map is filled according to the [`Finite`] implementation of `K`.
     ///
     /// ```
