@@ -174,7 +174,7 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     /// All elements must have been initialized.
     pub unsafe fn assume_init(self) -> ExhaustiveMap<K, V> {
         ExhaustiveMap {
-            array: std::mem::transmute::<_, Box<[V]>>(self.array),
+            array: std::mem::transmute::<Box<[MaybeUninit<V>]>, Box<[V]>>(self.array),
             _phantom: PhantomData,
         }
     }
