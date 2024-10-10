@@ -466,7 +466,7 @@ mod test {
 
     #[allow(unused)]
     const fn assert_implements_traits<
-        T: Send + Sync + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
+        T: Send + Sync + Default + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
     >() {
     }
 
