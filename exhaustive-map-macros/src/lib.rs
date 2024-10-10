@@ -4,7 +4,7 @@ use quote::{format_ident, quote, quote_spanned};
 use syn::{
     bracketed, parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated,
     spanned::Spanned, Data, DeriveInput, Field, Fields, GenericParam, Generics, Ident, Index,
-    LitInt, Path, Token, Variant,
+    LitInt, Path, Token, TypeParamBound, Variant,
 };
 
 struct EnumInput {
@@ -77,7 +77,10 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
                         )*
                         res
                     }
+                }
 
+                #[automatically_derived]
+                impl <#( #idents: ::exhaustive_map::FiniteExt ),*> ::exhaustive_map::FiniteExt for (#( #idents, )*) {
                     fn from_usize(mut i: usize) -> Option<Self> {
                         if i >= Self::INHABITANTS {
                             return None;
@@ -121,44 +124,55 @@ pub fn finite_derive(input: TokenStream) -> TokenStream {
 }
 
 fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::TokenStream {
-    let generics = add_trait_bounds(generics);
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
     let FiniteImpl {
         inhabitants,
         to_usize,
         from_usize,
     } = finite_impl(data);
 
-    quote! {
-        #[automatically_derived]
-        impl #impl_generics ::exhaustive_map::Finite for #path #ty_generics #where_clause {
-            const INHABITANTS: usize = #inhabitants;
+    let finite_impl = {
+        let generics = add_trait_bounds(generics.clone(), parse_quote!(::exhaustive_map::Finite));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-            #[allow(non_snake_case)]
-            fn to_usize(&self) -> usize {
-                let v = self;
-                #to_usize
-            }
+        quote! {
+            #[automatically_derived]
+            impl #impl_generics ::exhaustive_map::Finite for #path #ty_generics #where_clause {
+                const INHABITANTS: usize = #inhabitants;
 
-            #[allow(clippy::let_unit_value)]
-            #[allow(clippy::modulo_one)]
-            fn from_usize(mut i: usize) -> Option<Self> {
-                if i >= Self::INHABITANTS {
-                    return None;
+                #[allow(non_snake_case)]
+                fn to_usize(&self) -> usize {
+                    let v = self;
+                    #to_usize
                 }
-                #from_usize
             }
         }
-    }
+    };
+    let finite_ext_impl = {
+        let generics = add_trait_bounds(generics, parse_quote!(::exhaustive_map::FiniteExt));
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_generics ::exhaustive_map::FiniteExt for #path #ty_generics #where_clause {
+                #[allow(clippy::let_unit_value)]
+                #[allow(clippy::modulo_one)]
+                fn from_usize(mut i: usize) -> Option<Self> {
+                    if i >= Self::INHABITANTS {
+                        return None;
+                    }
+                    #from_usize
+                }
+            }
+        }
+    };
+
+    [finite_impl, finite_ext_impl].into_iter().collect()
 }
 
-fn add_trait_bounds(mut generics: Generics) -> Generics {
+fn add_trait_bounds(mut generics: Generics, bound: TypeParamBound) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
-            type_param
-                .bounds
-                .push(parse_quote!(::exhaustive_map::Finite));
+            type_param.bounds.push(bound.clone());
         }
     }
     generics
@@ -381,7 +395,7 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
         },
         from_usize: quote_spanned! { field.span() =>
             {
-                let v = <#ty as ::exhaustive_map::Finite>::from_usize(i % #inhabitants).unwrap();
+                let v = <#ty as ::exhaustive_map::FiniteExt>::from_usize(i % #inhabitants).unwrap();
                 i /= #inhabitants;
                 v
             }

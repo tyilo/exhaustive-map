@@ -40,7 +40,10 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Creates a map by providing a mapping function from `K` to `V`.
     ///
     /// Similar to [`array::from_fn`](std::array::from_fn).
-    pub fn from_fn(f: impl FnMut(K) -> V) -> Self {
+    pub fn from_fn(f: impl FnMut(K) -> V) -> Self
+    where
+        K: FiniteExt,
+    {
         Self {
             array: K::iter_all().map(f).collect(),
             _phantom: PhantomData,
@@ -50,7 +53,10 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Tries to create a map by providing a mapping function from `K` to `Result<V, E>`.
     ///
     /// Returns the first error if any of the mappings fails.
-    pub fn try_from_fn<E>(f: impl FnMut(K) -> Result<V, E>) -> Result<Self, E> {
+    pub fn try_from_fn<E>(f: impl FnMut(K) -> Result<V, E>) -> Result<Self, E>
+    where
+        K: FiniteExt,
+    {
         Ok(Self {
             array: K::iter_all().map(f).collect::<Result<_, E>>()?,
             _phantom: PhantomData,
@@ -137,7 +143,10 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// An iterator visiting all keys in the order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
-    pub fn keys() -> IterAll<K> {
+    pub fn keys() -> IterAll<K>
+    where
+        K: FiniteExt,
+    {
         K::iter_all()
     }
 
@@ -160,14 +169,20 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// An iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<K, V>
+    where
+        K: FiniteExt,
+    {
         Iter(Self::keys().zip(self.values()))
     }
 
     /// A mutable iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
-    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<K, V>
+    where
+        K: FiniteExt,
+    {
         IterMut(Self::keys().zip(self.values_mut()))
     }
 
@@ -259,7 +274,7 @@ impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
     }
 }
 
-impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
+impl<K: FiniteExt + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
     type Error = K;
 
     fn try_from(mut value: HashMap<K, V>) -> Result<Self, Self::Error> {
@@ -267,13 +282,13 @@ impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
     }
 }
 
-impl<K: Finite + Eq + Hash, V> From<ExhaustiveMap<K, V>> for HashMap<K, V> {
+impl<K: FiniteExt + Eq + Hash, V> From<ExhaustiveMap<K, V>> for HashMap<K, V> {
     fn from(value: ExhaustiveMap<K, V>) -> Self {
         Self::from_iter(value)
     }
 }
 
-impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
+impl<K: FiniteExt + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
     fn from(value: ExhaustiveMap<K, V>) -> Self {
         Self::from_iter(value)
     }
@@ -320,7 +335,7 @@ impl<V> Iterator for IntoValues<V> {
 
 impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
     fn default() -> Self {
-        Self::from_fn(|_| V::default())
+        Self::from_usize_fn(|_| V::default())
     }
 }
 
@@ -364,7 +379,7 @@ impl<K: Finite, V> Iterator for IntoIter<K, V> {
     }
 }
 
-impl<K: Finite, V> IntoIterator for ExhaustiveMap<K, V> {
+impl<K: FiniteExt, V> IntoIterator for ExhaustiveMap<K, V> {
     type Item = (K, V);
 
     type IntoIter = IntoIter<K, V>;
@@ -374,7 +389,7 @@ impl<K: Finite, V> IntoIterator for ExhaustiveMap<K, V> {
     }
 }
 
-impl<'a, K: Finite, V> IntoIterator for &'a ExhaustiveMap<K, V> {
+impl<'a, K: FiniteExt, V> IntoIterator for &'a ExhaustiveMap<K, V> {
     type Item = (K, &'a V);
 
     type IntoIter = Iter<'a, K, V>;
@@ -384,7 +399,7 @@ impl<'a, K: Finite, V> IntoIterator for &'a ExhaustiveMap<K, V> {
     }
 }
 
-impl<'a, K: Finite, V> IntoIterator for &'a mut ExhaustiveMap<K, V> {
+impl<'a, K: FiniteExt, V> IntoIterator for &'a mut ExhaustiveMap<K, V> {
     type Item = (K, &'a mut V);
 
     type IntoIter = IterMut<'a, K, V>;
@@ -394,7 +409,7 @@ impl<'a, K: Finite, V> IntoIterator for &'a mut ExhaustiveMap<K, V> {
     }
 }
 
-impl<K: Finite + Debug, V: Debug> Debug for ExhaustiveMap<K, V> {
+impl<K: FiniteExt + Debug, V: Debug> Debug for ExhaustiveMap<K, V> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self).finish()
     }

@@ -1,4 +1,4 @@
-use crate::Finite;
+use crate::{Finite, FiniteExt};
 
 /// A `usize` value that is guaranteed to be in the range `A..B`.
 ///
@@ -91,7 +91,9 @@ impl<const A: usize, const B: usize> Finite for InRange<A, B> {
     fn to_usize(&self) -> usize {
         self.get() - Self::MIN
     }
+}
 
+impl<const A: usize, const B: usize> FiniteExt for InRange<A, B> {
     fn from_usize(i: usize) -> Option<Self> {
         Self::new_from_start_offset(i)
     }
@@ -103,7 +105,9 @@ impl<const A: usize, const B: usize> Finite for InRangeInclusive<A, B> {
     fn to_usize(&self) -> usize {
         self.get() - Self::MIN
     }
+}
 
+impl<const A: usize, const B: usize> FiniteExt for InRangeInclusive<A, B> {
     fn from_usize(i: usize) -> Option<Self> {
         Self::new_from_start_offset(i)
     }
