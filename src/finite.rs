@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8},
     rc::Rc,
     sync::Arc,
@@ -320,6 +321,18 @@ impl_deref!(Box<T>);
 impl_deref!(Rc<T>);
 impl_deref!(Arc<T>);
 
+impl<'a, T: Finite + Clone> Finite for Cow<'a, T> {
+    const INHABITANTS: usize = T::INHABITANTS;
+
+    fn to_usize(&self) -> usize {
+        (**self).to_usize()
+    }
+
+    fn from_usize(i: usize) -> Option<Self> {
+        Some(Cow::Owned(T::from_usize(i)?))
+    }
+}
+
 #[derive(Finite)]
 #[__finite_foreign(Option)]
 enum _Option<T> {
@@ -540,6 +553,11 @@ mod test {
     #[test]
     fn test_tuple_bool_u8() {
         test_all::<(bool, u8)>(512);
+    }
+
+    #[test]
+    fn test_cow_arr() {
+        test_all::<Cow<[bool; 2]>>(4);
     }
 
     #[test]
