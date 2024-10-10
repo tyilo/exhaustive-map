@@ -41,7 +41,6 @@ assert_eq!(all, vec![Color::Red, Color::Green, Color::Blue]);
 ```
 
 The `Finite` trait can also be implemented manually:
-or manually:
 ```rust
 use exhaustive_map::Finite;
 
