@@ -22,7 +22,7 @@ pub trait InRangeBounds: Copy + Sized {
     /// Creates a value without checking whether the value is in range. This results in undefined behavior if the value is not in range.
     ///
     /// # Safety
-    /// `i` must satisfy `Self::Start <= i` and `i < Self::MIN + Self::INHABITANTS`.
+    /// `i` must satisfy `Self::MIN <= i` and `i < Self::MIN + Self::INHABITANTS`.
     unsafe fn new_unchecked(i: usize) -> Self;
 
     /// Returns the value as a `usize`.
@@ -30,11 +30,7 @@ pub trait InRangeBounds: Copy + Sized {
 
     /// Same as `InRangeBounds::new(Self::MIN + i)`.
     fn new_from_start_offset(offset: usize) -> Option<Self> {
-        if offset >= Self::INHABITANTS {
-            None
-        } else {
-            unsafe { Some(Self::new_unchecked(Self::MIN + offset)) }
-        }
+        Self::new(Self::MIN + offset)
     }
 
     /// Returns the offset from `Self::MIN` if `i` is in range.
@@ -55,6 +51,7 @@ pub trait InRangeBounds: Copy + Sized {
     /// Creates a value if the given value is in range.
     fn new(i: usize) -> Option<Self> {
         if Self::in_bounds(i) {
+            // SAFETY: `i` is in bounds.
             Some(unsafe { Self::new_unchecked(i) })
         } else {
             None

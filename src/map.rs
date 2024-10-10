@@ -379,6 +379,7 @@ mod test {
         let mut m = ExhaustiveMap::<bool, u8>::new_uninit();
         m[true].write(123);
         m[false].write(45);
+        // SAFETY: All elements has been initialized.
         let m = unsafe { m.assume_init() };
         println!("{m:?}");
     }

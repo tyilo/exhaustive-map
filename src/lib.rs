@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![deny(clippy::undocumented_unsafe_blocks)]
 
 mod finite;
 mod map;
