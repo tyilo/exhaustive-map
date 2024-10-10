@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    collections::{BTreeMap, HashMap},
     fmt::Debug,
     hash::Hash,
     marker::PhantomData,
@@ -44,6 +45,16 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
             array: K::iter_all().map(f).collect(),
             _phantom: PhantomData,
         }
+    }
+
+    /// Tries to create a map by providing a mapping function from `K` to `Result<V, E>`.
+    ///
+    /// Returns the first error if any of the mappings fails.
+    pub fn try_from_fn<E>(f: impl FnMut(K) -> Result<V, E>) -> Result<Self, E> {
+        Ok(Self {
+            array: K::iter_all().map(f).collect::<Result<_, E>>()?,
+            _phantom: PhantomData,
+        })
     }
 
     /// Creates a map by providing a mapping function from `usize` to `V`.
@@ -178,6 +189,74 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
             array: std::mem::transmute::<Box<[MaybeUninit<V>]>, Box<[V]>>(self.array),
             _phantom: PhantomData,
         }
+    }
+}
+
+impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
+    type Error = Box<[V]>;
+
+    fn try_from(value: Box<[V]>) -> Result<Self, Self::Error> {
+        if value.len() != K::INHABITANTS {
+            return Err(value);
+        }
+        Ok(Self {
+            array: value,
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<K: Finite, V> From<ExhaustiveMap<K, V>> for Box<[V]> {
+    fn from(value: ExhaustiveMap<K, V>) -> Self {
+        value.array
+    }
+}
+
+impl<K: Finite, V> TryFrom<Vec<V>> for ExhaustiveMap<K, V> {
+    type Error = Vec<V>;
+
+    fn try_from(value: Vec<V>) -> Result<Self, Self::Error> {
+        if value.len() != K::INHABITANTS {
+            return Err(value);
+        }
+        Ok(Self {
+            array: value.into(),
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
+    type Error = [V; N];
+
+    fn try_from(value: [V; N]) -> Result<Self, Self::Error> {
+        if N != K::INHABITANTS {
+            return Err(value);
+        }
+        Ok(Self {
+            array: value.into(),
+            _phantom: PhantomData,
+        })
+    }
+}
+
+impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
+    type Error = K;
+
+    fn try_from(mut value: HashMap<K, V>) -> Result<Self, Self::Error> {
+        Self::try_from_fn(|k| value.remove(&k).ok_or(k))
+    }
+}
+
+impl<K: Finite + Eq + Hash, V> From<ExhaustiveMap<K, V>> for HashMap<K, V> {
+    fn from(value: ExhaustiveMap<K, V>) -> Self {
+        Self::from_iter(value)
+    }
+}
+
+impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
+    fn from(value: ExhaustiveMap<K, V>) -> Self {
+        Self::from_iter(value)
     }
 }
 
@@ -382,5 +461,12 @@ mod test {
         // SAFETY: All elements has been initialized.
         let m = unsafe { m.assume_init() };
         println!("{m:?}");
+    }
+
+    #[test]
+    fn test_conversion() {
+        let m: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
+        assert_eq!(m[false], 2);
+        assert_eq!(m[true], 3);
     }
 }
