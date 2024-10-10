@@ -1,6 +1,7 @@
 use std::{
     borrow::Borrow,
     fmt::Debug,
+    hash::Hash,
     marker::PhantomData,
     mem::MaybeUninit,
     ops::{Index, IndexMut},
@@ -27,7 +28,7 @@ use crate::{
 /// assert_eq!(map[3], 9999);
 /// assert_eq!(map[7], 103);
 /// ```
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct ExhaustiveMap<K: Finite, V> {
     // Replace with [V; { K::INHABITANTS }] when Rust supports it
     array: Box<[V]>,
@@ -315,9 +316,63 @@ impl<K: Finite, V, Q: Borrow<K>> IndexMut<Q> for ExhaustiveMap<K, V> {
     }
 }
 
+// The following traits could have been implemented using a derive macro,
+// however that would put an unnecessary trait bound on the key.
+
+impl<K: Finite, V: Clone> Clone for ExhaustiveMap<K, V> {
+    fn clone(&self) -> Self {
+        Self {
+            array: self.array.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<K: Finite, V: PartialEq> PartialEq for ExhaustiveMap<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.array.eq(&other.array)
+    }
+}
+
+impl<K: Finite, V: Eq> Eq for ExhaustiveMap<K, V> {}
+
+impl<K: Finite, V: PartialOrd> PartialOrd for ExhaustiveMap<K, V> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.array.partial_cmp(&other.array)
+    }
+}
+
+impl<K: Finite, V: Ord> Ord for ExhaustiveMap<K, V> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.array.cmp(&other.array)
+    }
+}
+
+impl<K: Finite, V: Hash> Hash for ExhaustiveMap<K, V> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.array.hash(state);
+    }
+}
+
+// SAFETY: `ExhaustiveMap<K, V>` is just a transparent wrapper around `Box<[V]>`.
+unsafe impl<K: Finite, V> Send for ExhaustiveMap<K, V> where Box<[V]>: Send {}
+// SAFETY: `ExhaustiveMap<K, V>` is just a transparent wrapper around `Box<[V]>`.
+unsafe impl<K: Finite, V> Sync for ExhaustiveMap<K, V> where Box<[V]>: Sync {}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[derive(Finite)]
+    struct Key(PhantomData<*mut u8>);
+
+    #[allow(unused)]
+    const fn assert_implements_traits<
+        T: Send + Sync + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
+    >() {
+    }
+
+    const _: () = assert_implements_traits::<ExhaustiveMap<Key, bool>>();
 
     #[test]
     fn test_uninit() {
