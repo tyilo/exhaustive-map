@@ -2,50 +2,9 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
-    bracketed, parse::Parse, parse_macro_input, parse_quote, punctuated::Punctuated,
-    spanned::Spanned, Data, DeriveInput, Field, Fields, GenericParam, Generics, Ident, Index,
-    LitInt, Path, Token, Variant,
+    parse_macro_input, parse_quote, spanned::Spanned, Data, DeriveInput, Field, Fields,
+    GenericParam, Generics, Ident, Index, LitInt, Path, Variant,
 };
-
-struct EnumInput {
-    typ: Path,
-    inhabitants: Punctuated<Ident, Token![,]>,
-}
-
-impl Parse for EnumInput {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let typ = input.parse()?;
-        let _: Token![,] = input.parse()?;
-        let content;
-        bracketed!(content in input);
-        let inhabitants = content.parse_terminated(Ident::parse, Token![,])?;
-        Ok(Self { typ, inhabitants })
-    }
-}
-
-#[proc_macro]
-pub fn __impl_enum(input: TokenStream) -> TokenStream {
-    let EnumInput { typ, inhabitants } = parse_macro_input!(input as EnumInput);
-
-    impl_finite(
-        &typ,
-        Default::default(),
-        &Data::Enum(syn::DataEnum {
-            enum_token: Default::default(),
-            brace_token: Default::default(),
-            variants: inhabitants
-                .into_iter()
-                .map(|ident| Variant {
-                    attrs: Default::default(),
-                    ident,
-                    fields: Fields::Unit,
-                    discriminant: Default::default(),
-                })
-                .collect(),
-        }),
-    )
-    .into()
-}
 
 #[proc_macro]
 pub fn __impl_tuples(input: TokenStream) -> TokenStream {
@@ -53,7 +12,7 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     let n: usize = v.base10_parse().unwrap();
 
     let mut res = Vec::<TokenStream>::new();
-    for k in 1..=n {
+    for k in 0..=n {
         let indices = 0..k;
         let idents: Vec<_> = indices
             .clone()

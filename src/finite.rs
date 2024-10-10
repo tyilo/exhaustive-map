@@ -6,7 +6,7 @@ use std::{
 };
 
 pub use exhaustive_map_macros::Finite;
-use exhaustive_map_macros::{__impl_enum, __impl_tuples};
+use exhaustive_map_macros::__impl_tuples;
 
 /// Represents a type that has a finite number of inhabitants.
 ///
@@ -71,34 +71,6 @@ impl<T> Iterator for IterAll<T> {
         self.0.next()
     }
 }
-
-__impl_enum!(std::convert::Infallible, []);
-
-macro_rules! impl_singleton {
-    ($type:path) => {
-        impl_singleton!($type, $type);
-    };
-    ($type:tt, $value:expr) => {
-        impl Finite for $type {
-            const INHABITANTS: usize = 1;
-
-            fn to_usize(&self) -> usize {
-                0
-            }
-
-            fn from_usize(i: usize) -> Option<Self> {
-                match i {
-                    0 => Some($value),
-                    _ => None,
-                }
-            }
-        }
-    };
-}
-
-impl_singleton!((), ());
-impl_singleton!(std::alloc::System);
-impl_singleton!(std::marker::PhantomPinned);
 
 impl<T: ?Sized> Finite for std::marker::PhantomData<T> {
     const INHABITANTS: usize = 1;
@@ -245,16 +217,6 @@ impl Finite for f32 {
     }
 }
 
-__impl_enum!(std::cmp::Ordering, [Less, Equal, Greater]);
-__impl_enum!(std::net::Shutdown, [Read, Write, Both]);
-__impl_enum!(
-    std::num::FpCategory,
-    [Nan, Infinite, Zero, Subnormal, Normal]
-);
-__impl_enum!(std::sync::mpsc::RecvTimeoutError, [Timeout, Disconnected]);
-__impl_enum!(std::sync::mpsc::TryRecvError, [Empty, Disconnected]);
-__impl_enum!(std::fmt::Alignment, [Left, Right, Center]);
-
 macro_rules! impl_from {
     ($type:path, $from:path) => {
         impl Finite for $type {
@@ -331,6 +293,66 @@ impl<'a, T: Finite + Clone> Finite for Cow<'a, T> {
     fn from_usize(i: usize) -> Option<Self> {
         Some(Cow::Owned(T::from_usize(i)?))
     }
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::convert::Infallible)]
+enum _Infallible {}
+
+#[derive(Finite)]
+#[__finite_foreign(std::alloc::System)]
+struct _System;
+
+#[derive(Finite)]
+#[__finite_foreign(std::marker::PhantomPinned)]
+struct _PhantomPinned;
+
+#[derive(Finite)]
+#[__finite_foreign(std::cmp::Ordering)]
+enum _Ordering {
+    Less,
+    Equal,
+    Greater,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::net::Shutdown)]
+enum _Shutdown {
+    Read,
+    Write,
+    Both,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::num::FpCategory)]
+enum _FpCategory {
+    Nan,
+    Infinite,
+    Zero,
+    Subnormal,
+    Normal,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::sync::mpsc::RecvTimeoutError)]
+enum _RecvTimeoutError {
+    Timeout,
+    Disconnected,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::sync::mpsc::TryRecvError)]
+enum _TryRecvError {
+    Empty,
+    Disconnected,
+}
+
+#[derive(Finite)]
+#[__finite_foreign(std::fmt::Alignment)]
+enum _Alignment {
+    Left,
+    Right,
+    Center,
 }
 
 #[derive(Finite)]
