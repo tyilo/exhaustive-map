@@ -180,6 +180,25 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     }
 }
 
+impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
+    /// Tries to convert an `ExhaustiveMap<K, Option<V>>` to an `ExhaustiveMap<K, V>`.
+    ///
+    /// If any of the values are `None`, this returns `Err` containing the input map.
+    pub fn try_unwrap_values(self) -> Result<ExhaustiveMap<K, V>, ExhaustiveMap<K, Option<V>>> {
+        if !self.array.iter().all(|v| v.is_some()) {
+            return Err(self);
+        }
+        let values: Box<[V]> = self
+            .array
+            .into_vec()
+            .into_iter()
+            .map(|v| v.unwrap())
+            .collect();
+        // SAFETY: `values` has the correct length as we used `map`.
+        Ok(unsafe { values.try_into().unwrap_unchecked() })
+    }
+}
+
 impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     /// # Safety
     ///
@@ -468,5 +487,17 @@ mod test {
         let m: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
         assert_eq!(m[false], 2);
         assert_eq!(m[true], 3);
+    }
+
+    #[test]
+    fn test_try_unrwap_values() {
+        let m: ExhaustiveMap<bool, Option<u8>> = ExhaustiveMap::from_fn(|_| None);
+        let mut m = m.try_unwrap_values().unwrap_err();
+        m[false] = Some(2);
+        let mut m = m.try_unwrap_values().unwrap_err();
+        m[true] = Some(3);
+        let m = m.try_unwrap_values().unwrap();
+        let expected: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
+        assert_eq!(m, expected);
     }
 }
