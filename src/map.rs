@@ -2,7 +2,7 @@ use std::{
     borrow::Borrow,
     collections::{BTreeMap, HashMap},
     fmt::Debug,
-    hash::Hash,
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     mem::MaybeUninit,
     ops::{Index, IndexMut},
@@ -40,6 +40,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Creates a map by providing a mapping function from `K` to `V`.
     ///
     /// Similar to [`array::from_fn`](std::array::from_fn).
+    #[must_use]
     pub fn from_fn(f: impl FnMut(K) -> V) -> Self {
         Self {
             array: K::iter_all().map(f).collect(),
@@ -48,6 +49,8 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     }
 
     /// Tries to create a map by providing a mapping function from `K` to `Result<V, E>`.
+    ///
+    /// # Errors
     ///
     /// Returns the first error if any of the mappings fails.
     pub fn try_from_fn<E>(f: impl FnMut(K) -> Result<V, E>) -> Result<Self, E> {
@@ -75,6 +78,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// assert_eq!(map[Color::Green], 1);
     /// assert_eq!(map[Color::Blue], 2);
     /// ```
+    #[must_use]
     pub fn from_usize_fn(f: impl FnMut(usize) -> V) -> Self {
         Self {
             array: (0..K::INHABITANTS).map(f).collect(),
@@ -85,6 +89,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Returns the number of elements in the map.
     ///
     /// Always equal to `K::INHABITANTS`.
+    #[must_use]
     pub const fn len(&self) -> usize {
         K::INHABITANTS
     }
@@ -93,6 +98,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     ///
     /// The map can only be empty if `K::INHABITANTS` is zero,
     /// meaning the type `K` is uninhabitable.
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         K::INHABITANTS == 0
     }
@@ -105,7 +111,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Swaps the values at stored at `k1` and `k2`.
     pub fn swap<Q1: Borrow<K>, Q2: Borrow<K>>(&mut self, k1: Q1, k2: Q2) {
         self.array
-            .swap(k1.borrow().to_usize(), k2.borrow().to_usize())
+            .swap(k1.borrow().to_usize(), k2.borrow().to_usize());
     }
 
     /// Replace the value stored for `k` with the default value of `V`, returning the previous stored value.
@@ -127,6 +133,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// assert_eq!(bool_to_int_string[false], "0");
     /// assert_eq!(bool_to_int_string[true], "1");
     /// ```
+    #[must_use]
     pub fn map_values<U>(self, f: impl FnMut(V) -> U) -> ExhaustiveMap<K, U> {
         ExhaustiveMap {
             array: self.into_values().map(f).collect(),
@@ -142,12 +149,12 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     }
 
     /// An iterator visiting all values stored in the map, ordered by the keys order provided by [`Finite`].
-    pub fn values(&self) -> Values<V> {
+    pub fn values(&self) -> Values<'_, V> {
         Values(self.array.iter())
     }
 
     /// A mutable iterator visiting all values stored in the map, ordered by the keys order provided by [`Finite`].
-    pub fn values_mut(&mut self) -> ValuesMut<V> {
+    pub fn values_mut(&mut self) -> ValuesMut<'_, V> {
         ValuesMut(self.array.iter_mut())
     }
 
@@ -160,14 +167,14 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// An iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
-    pub fn iter(&self) -> Iter<K, V> {
+    pub fn iter(&self) -> Iter<'_, K, V> {
         Iter(Self::keys().zip(self.values()))
     }
 
     /// A mutable iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
     ///
     /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
-    pub fn iter_mut(&mut self) -> IterMut<K, V> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut(Self::keys().zip(self.values_mut()))
     }
 
@@ -175,6 +182,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     ///
     /// After every value have been initialized [`assume_init`](ExhaustiveMap::assume_init) can be
     /// called to obtain a map with values of type `V`.
+    #[must_use]
     pub fn new_uninit() -> ExhaustiveMap<K, MaybeUninit<V>> {
         ExhaustiveMap::from_usize_fn(|_| MaybeUninit::uninit())
     }
@@ -183,11 +191,14 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
 impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
     /// Tries to convert an `ExhaustiveMap<K, Option<V>>` to an `ExhaustiveMap<K, V>`.
     ///
+    /// # Errors
+    ///
     /// If any of the values are `None`, this returns `Err` containing the input map.
     pub fn try_unwrap_values(self) -> Result<ExhaustiveMap<K, V>, ExhaustiveMap<K, Option<V>>> {
-        if !self.array.iter().all(|v| v.is_some()) {
+        if !self.array.iter().all(Option::is_some) {
             return Err(self);
         }
+        #[allow(clippy::missing_panics_doc)]
         let values: Box<[V]> = self
             .array
             .into_vec()
@@ -203,6 +214,7 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     /// # Safety
     ///
     /// All elements must have been initialized.
+    #[must_use]
     pub unsafe fn assume_init(self) -> ExhaustiveMap<K, V> {
         ExhaustiveMap {
             array: std::mem::transmute::<Box<[MaybeUninit<V>]>, Box<[V]>>(self.array),
@@ -267,7 +279,9 @@ impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
     }
 }
 
-impl<K: Finite + Eq + Hash, V> From<ExhaustiveMap<K, V>> for HashMap<K, V> {
+impl<K: Finite + Eq + Hash, V, S: BuildHasher + Default> From<ExhaustiveMap<K, V>>
+    for HashMap<K, V, S>
+{
     fn from(value: ExhaustiveMap<K, V>) -> Self {
         Self::from_iter(value)
     }
@@ -282,6 +296,7 @@ impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
 /// An iterator over the values of an [`ExhaustiveMap`].
 ///
 /// This `struct` is created by the [`ExhaustiveMap::values`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Values<'a, V>(std::slice::Iter<'a, V>);
 
 impl<'a, V> Iterator for Values<'a, V> {
@@ -295,6 +310,7 @@ impl<'a, V> Iterator for Values<'a, V> {
 /// A mutable iterator over the values of an [`ExhaustiveMap`].
 ///
 /// This `struct` is created by the [`ExhaustiveMap::values_mut`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct ValuesMut<'a, V>(std::slice::IterMut<'a, V>);
 
 impl<'a, V> Iterator for ValuesMut<'a, V> {
@@ -308,6 +324,7 @@ impl<'a, V> Iterator for ValuesMut<'a, V> {
 /// An owning iterator over the values of an [`ExhaustiveMap`].
 ///
 /// This `struct` is created by the [`ExhaustiveMap::into_values`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct IntoValues<V>(std::vec::IntoIter<V>);
 
 impl<V> Iterator for IntoValues<V> {
@@ -327,6 +344,7 @@ impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
 /// An iterator over the entries of an [`ExhaustiveMap`].
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct Iter<'a, K: Finite, V>(std::iter::Zip<IterAll<K>, Values<'a, V>>);
 
 impl<'a, K: Finite, V> Iterator for Iter<'a, K, V> {
@@ -340,6 +358,7 @@ impl<'a, K: Finite, V> Iterator for Iter<'a, K, V> {
 /// A mutable iterator over the entries of an [`ExhaustiveMap`].
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter_mut`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct IterMut<'a, K: Finite, V>(std::iter::Zip<IterAll<K>, ValuesMut<'a, V>>);
 
 impl<'a, K: Finite, V> Iterator for IterMut<'a, K, V> {
@@ -354,6 +373,7 @@ impl<'a, K: Finite, V> Iterator for IterMut<'a, K, V> {
 ///
 /// This `struct` is created by the [`into_iter`](IntoIterator::into_iter) method on [`ExhaustiveMap`]
 /// (provided by the [`IntoIterator`] trait).
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct IntoIter<K: Finite, V>(std::iter::Zip<IterAll<K>, IntoValues<V>>);
 
 impl<K: Finite, V> Iterator for IntoIter<K, V> {

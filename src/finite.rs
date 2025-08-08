@@ -39,11 +39,13 @@ pub trait Finite: Sized {
     const INHABITANTS: usize;
 
     /// Should return a number in the range `0..INHABITANTS`.
+    #[must_use]
     fn to_usize(&self) -> usize;
 
     /// Should be the inverse function of `to_usize`.
     ///
     /// This should return `Some` if and only if `i < T::INHABITANTS`.
+    #[must_use]
     fn from_usize(i: usize) -> Option<Self>;
 }
 
@@ -62,6 +64,7 @@ impl<T: Finite> FiniteExt for T {}
 /// An owned iterator over all inhabitants of a type implementing [`Finite`].
 ///
 /// This `struct` is created by the [`FiniteExt::iter_all`] method.
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct IterAll<T>(std::iter::Map<std::ops::Range<usize>, fn(usize) -> T>);
 
 impl<T> Iterator for IterAll<T> {
@@ -91,7 +94,7 @@ impl Finite for bool {
     const INHABITANTS: usize = 2;
 
     fn to_usize(&self) -> usize {
-        *self as usize
+        usize::from(*self)
     }
 
     fn from_usize(i: usize) -> Option<Self> {
@@ -129,10 +132,12 @@ macro_rules! impl_iprim {
             const INHABITANTS: usize = <$utype as Finite>::INHABITANTS;
 
             fn to_usize(&self) -> usize {
+                #[allow(clippy::cast_sign_loss)]
                 (*self as $utype).to_usize()
             }
 
             fn from_usize(i: usize) -> Option<Self> {
+                #[allow(clippy::cast_possible_wrap)]
                 <$utype as Finite>::from_usize(i).map(|v| v as Self)
             }
         }
@@ -283,7 +288,7 @@ impl_deref!(Box<T>);
 impl_deref!(Rc<T>);
 impl_deref!(Arc<T>);
 
-impl<'a, T: Finite + Clone> Finite for Cow<'a, T> {
+impl<T: Finite + Clone> Finite for Cow<'_, T> {
     const INHABITANTS: usize = T::INHABITANTS;
 
     fn to_usize(&self) -> usize {

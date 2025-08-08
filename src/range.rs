@@ -23,17 +23,21 @@ pub trait InRangeBounds: Copy + Sized {
     ///
     /// # Safety
     /// `i` must satisfy `Self::MIN <= i` and `i < Self::MIN + Self::INHABITANTS`.
+    #[must_use]
     unsafe fn new_unchecked(i: usize) -> Self;
 
     /// Returns the value as a `usize`.
+    #[must_use]
     fn get(self) -> usize;
 
     /// Same as `InRangeBounds::new(Self::MIN + i)`.
+    #[must_use]
     fn new_from_start_offset(offset: usize) -> Option<Self> {
         Self::new(Self::MIN + offset)
     }
 
     /// Returns the offset from `Self::MIN` if `i` is in range.
+    #[must_use]
     fn offset_from_start(i: usize) -> Option<usize> {
         let offset = i.checked_sub(Self::MIN)?;
         if offset < Self::INHABITANTS {
@@ -44,11 +48,13 @@ pub trait InRangeBounds: Copy + Sized {
     }
 
     /// Returns whether `i` is in range.
+    #[must_use]
     fn in_bounds(i: usize) -> bool {
         Self::offset_from_start(i).is_some()
     }
 
     /// Creates a value if the given value is in range.
+    #[must_use]
     fn new(i: usize) -> Option<Self> {
         if Self::in_bounds(i) {
             // SAFETY: `i` is in bounds.
