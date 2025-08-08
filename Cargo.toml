@@ -1,5 +1,5 @@
 [workspace]
-members = ["exhaustive-map-macros"]
+members = ["exhaustive-map-macros", "tests"]
 
 [workspace.package]
 edition = "2021"
@@ -23,3 +23,10 @@ categories.workspace = true
 
 [dependencies]
 exhaustive-map-macros = { version = "0.2.2", path = "exhaustive-map-macros" }
+
+[[test]]
+name = "ui"
+harness = false
+
+[dev-dependencies]
+ui_test = "0.30.2"
