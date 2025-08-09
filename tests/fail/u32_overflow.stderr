@@ -1,13 +1,13 @@
 error[E0080]: evaluation panicked: doesn't fit in a usize
-   --> ../src/finite.rs:256:32
+   --> ../src/finite.rs:265:32
     |
-256 |     const INHABITANTS: usize = pow(T::INHABITANTS, N);
+265 |     const INHABITANTS: usize = pow(T::INHABITANTS, N);
     |                                ^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<[bool; 4294967296] as exhaustive_map::Finite>::INHABITANTS` failed inside this call
     |
 note: inside `exhaustive_map::finite::pow`
-   --> ../src/finite.rs:156:5
+   --> ../src/finite.rs:160:5
     |
-156 |     assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
+160 |     assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
 
 note: erroneous constant encountered

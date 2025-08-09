@@ -1,6 +1,8 @@
+#[cfg(target_pointer_width = "64")]
+use std::num::{NonZeroI32, NonZeroU32};
 use std::{
     borrow::Cow,
-    num::{NonZeroI16, NonZeroI32, NonZeroI8, NonZeroU16, NonZeroU32, NonZeroU8},
+    num::{NonZeroI16, NonZeroI8, NonZeroU16, NonZeroU8},
     rc::Rc,
     sync::Arc,
 };
@@ -124,6 +126,7 @@ macro_rules! impl_uprim {
 
 impl_uprim!(u8);
 impl_uprim!(u16);
+#[cfg(target_pointer_width = "64")]
 impl_uprim!(u32);
 
 macro_rules! impl_iprim {
@@ -146,6 +149,7 @@ macro_rules! impl_iprim {
 
 impl_iprim!(i8, u8);
 impl_iprim!(i16, u16);
+#[cfg(target_pointer_width = "64")]
 impl_iprim!(i32, u32);
 
 const fn pow(a: usize, b: usize) -> usize {
@@ -178,6 +182,7 @@ macro_rules! impl_unonzero {
 
 impl_unonzero!(NonZeroU8);
 impl_unonzero!(NonZeroU16);
+#[cfg(target_pointer_width = "64")]
 impl_unonzero!(NonZeroU32);
 
 macro_rules! impl_inonzero {
@@ -198,6 +203,7 @@ macro_rules! impl_inonzero {
 
 impl_inonzero!(NonZeroI8, i8);
 impl_inonzero!(NonZeroI16, i16);
+#[cfg(target_pointer_width = "64")]
 impl_inonzero!(NonZeroI32, i32);
 
 const CHAR_GAP_START: usize = 0xD800;
@@ -222,6 +228,7 @@ impl Finite for char {
     }
 }
 
+#[cfg(target_pointer_width = "64")]
 impl Finite for f32 {
     const INHABITANTS: usize = u32::INHABITANTS;
 
@@ -234,6 +241,7 @@ impl Finite for f32 {
     }
 }
 
+#[cfg(target_pointer_width = "64")]
 macro_rules! impl_from {
     ($type:path, $from:path) => {
         impl Finite for $type {
@@ -250,6 +258,7 @@ macro_rules! impl_from {
     };
 }
 
+#[cfg(target_pointer_width = "64")]
 impl_from!(std::net::Ipv4Addr, u32);
 
 impl<const N: usize, T: Finite> Finite for [T; N] {
@@ -501,6 +510,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_u32() {
         test_all::<u32>(256 * 256 * 256 * 256);
     }
@@ -517,6 +527,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_i32() {
         test_all::<i32>(256 * 256 * 256 * 256);
     }
@@ -533,6 +544,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_nonzero_u32() {
         test_all::<NonZeroU32>(256 * 256 * 256 * 256 - 1);
     }
@@ -549,6 +561,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_nonzero_i32() {
         test_all::<NonZeroI32>(256 * 256 * 256 * 256 - 1);
     }
@@ -560,6 +573,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_f32() {
         test_all::<f32>(256usize.pow(4));
     }
@@ -608,6 +622,7 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
+    #[cfg(target_pointer_width = "64")]
     fn test_ipv4_address() {
         test_all::<std::net::Ipv4Addr>(256usize.pow(4));
     }
