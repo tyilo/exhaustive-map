@@ -125,7 +125,7 @@ mod test {
         for i in (0..10).chain(usize::MAX - 10..=usize::MAX) {
             let v = T::new(i);
             if expected_range.contains(&i) {
-                assert_eq!(v.map(|v| v.get()), Some(i));
+                assert_eq!(v.map(InRangeBounds::get), Some(i));
             } else {
                 assert_eq!(v, None);
             }

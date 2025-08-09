@@ -1,3 +1,5 @@
+//@normalize-stderr-test: "/[^ ]*/src/finite.rs" -> "../src/finite.rs"
+
 use exhaustive_map::Finite;
 
 pub const SHOULD_OVERFLOW: usize = {

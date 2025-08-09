@@ -148,10 +148,22 @@ impl_iprim!(i8, u8);
 impl_iprim!(i16, u16);
 impl_iprim!(i32, u32);
 
+const fn pow(a: usize, b: usize) -> usize {
+    if a <= 1 {
+        return a;
+    }
+
+    assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
+    #[allow(clippy::cast_possible_truncation)]
+    let b = b as u32;
+
+    a.pow(b)
+}
+
 macro_rules! impl_unonzero {
     ($type:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = 2usize.pow(std::mem::size_of::<$type>() as u32 * 8) - 1;
+            const INHABITANTS: usize = pow(2, std::mem::size_of::<$type>() * 8) - 1;
 
             fn to_usize(&self) -> usize {
                 self.get() as usize - 1
@@ -241,7 +253,7 @@ macro_rules! impl_from {
 impl_from!(std::net::Ipv4Addr, u32);
 
 impl<const N: usize, T: Finite> Finite for [T; N] {
-    const INHABITANTS: usize = T::INHABITANTS.pow(N as u32);
+    const INHABITANTS: usize = pow(T::INHABITANTS, N);
 
     fn to_usize(&self) -> usize {
         let mut res = 0;
@@ -488,7 +500,7 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_u32() {
         test_all::<u32>(256 * 256 * 256 * 256);
     }
@@ -504,7 +516,7 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_i32() {
         test_all::<i32>(256 * 256 * 256 * 256);
     }
@@ -520,7 +532,7 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_nonzero_u32() {
         test_all::<NonZeroU32>(256 * 256 * 256 * 256 - 1);
     }
@@ -536,18 +548,18 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_nonzero_i32() {
         test_all::<NonZeroI32>(256 * 256 * 256 * 256 - 1);
     }
 
     #[test]
     fn test_char() {
-        test_all::<char>(0x110000 - CHAR_GAP_SIZE);
+        test_all::<char>(0x11_0000 - CHAR_GAP_SIZE);
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_f32() {
         test_all::<f32>(256usize.pow(4));
     }
@@ -595,7 +607,7 @@ mod test {
     }
 
     #[test]
-    #[cfg_attr(debug_assertions, ignore)]
+    #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
     fn test_ipv4_address() {
         test_all::<std::net::Ipv4Addr>(256usize.pow(4));
     }
@@ -725,6 +737,7 @@ mod test {
 
     #[test]
     fn test_derive_struct_with_names_from_implementation() {
+        #[allow(clippy::struct_excessive_bools)]
         #[derive(Finite, Debug, PartialEq)]
         struct Struct {
             v: bool,

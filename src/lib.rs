@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![warn(clippy::pedantic)]
 #![deny(clippy::undocumented_unsafe_blocks)]
 
 mod finite;

@@ -1,0 +1,21 @@
+error[E0080]: evaluation panicked: doesn't fit in a usize
+   --> ../src/finite.rs:256:32
+    |
+256 |     const INHABITANTS: usize = pow(T::INHABITANTS, N);
+    |                                ^^^^^^^^^^^^^^^^^^^^^^ evaluation of `<[bool; 4294967296] as exhaustive_map::Finite>::INHABITANTS` failed inside this call
+    |
+note: inside `exhaustive_map::finite::pow`
+   --> ../src/finite.rs:156:5
+    |
+156 |     assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
+
+note: erroneous constant encountered
+  --> tests/fail/u32_overflow.rs:13:5
+   |
+13 |     <[bool; LEN]>::INHABITANTS
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0080`.
