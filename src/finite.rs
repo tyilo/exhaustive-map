@@ -1,8 +1,11 @@
 #[cfg(target_pointer_width = "64")]
-use std::num::{NonZeroI32, NonZeroU32};
+use std::num::{NonZeroI64, NonZeroU64};
 use std::{
     borrow::Cow,
-    num::{NonZeroI16, NonZeroI8, NonZeroU16, NonZeroU8},
+    num::{
+        NonZeroI16, NonZeroI32, NonZeroI8, NonZeroIsize, NonZeroU16, NonZeroU32, NonZeroU8,
+        NonZeroUsize,
+    },
     rc::Rc,
     sync::Arc,
 };
@@ -164,17 +167,32 @@ const fn pow(a: usize, b: usize) -> usize {
     a.pow(b)
 }
 
+const fn pow_minus_one(a: usize, b: usize) -> usize {
+    assert!(a != 0, "-1 doesn't fit in a usize");
+    if a == 1 {
+        return 0;
+    }
+
+    assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
+    #[allow(clippy::cast_possible_truncation)]
+    let b = b as u32;
+
+    let res = (a as u128).pow(b) - 1;
+    assert!(res <= usize::MAX as u128, "doesn't fit in a usize");
+    res as usize
+}
+
 macro_rules! impl_unonzero {
     ($type:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = pow(2, std::mem::size_of::<$type>() * 8) - 1;
+            const INHABITANTS: usize = pow_minus_one(2, std::mem::size_of::<$type>() * 8);
 
             fn to_usize(&self) -> usize {
-                self.get() as usize - 1
+                usize::try_from(self.get()).unwrap() - 1
             }
 
             fn from_usize(i: usize) -> Option<Self> {
-                <$type>::new((i + 1).try_into().ok()?)
+                <$type>::new((i.checked_add(1)?).try_into().ok()?)
             }
         }
     };
@@ -182,29 +200,39 @@ macro_rules! impl_unonzero {
 
 impl_unonzero!(NonZeroU8);
 impl_unonzero!(NonZeroU16);
-#[cfg(target_pointer_width = "64")]
 impl_unonzero!(NonZeroU32);
+#[cfg(target_pointer_width = "64")]
+impl_unonzero!(NonZeroU64);
+impl_unonzero!(NonZeroUsize);
 
 macro_rules! impl_inonzero {
-    ($nonzero_type:path, $itype:path) => {
+    ($nonzero_type:path, $itype:path, $utype:path) => {
         impl Finite for $nonzero_type {
-            const INHABITANTS: usize = <$itype as Finite>::INHABITANTS - 1;
+            const INHABITANTS: usize = pow_minus_one(2, std::mem::size_of::<$nonzero_type>() * 8);
 
+            #[allow(clippy::cast_sign_loss)]
             fn to_usize(&self) -> usize {
-                (self.get() as $itype).to_usize() - 1
+                usize::try_from(self.get() as $utype).unwrap() - 1
             }
 
+            #[allow(clippy::cast_possible_wrap)]
             fn from_usize(i: usize) -> Option<Self> {
-                <$nonzero_type>::new(<$itype>::from_usize(i + 1)?)
+                <$nonzero_type>::new(
+                    <$utype>::try_from(i.checked_add(1)?)
+                        .map(|v| v as $itype)
+                        .ok()?,
+                )
             }
         }
     };
 }
 
-impl_inonzero!(NonZeroI8, i8);
-impl_inonzero!(NonZeroI16, i16);
+impl_inonzero!(NonZeroI8, i8, u8);
+impl_inonzero!(NonZeroI16, i16, u16);
+impl_inonzero!(NonZeroI32, i32, u32);
 #[cfg(target_pointer_width = "64")]
-impl_inonzero!(NonZeroI32, i32);
+impl_inonzero!(NonZeroI64, i64, u64);
+impl_inonzero!(NonZeroIsize, isize, usize);
 
 const CHAR_GAP_START: usize = 0xD800;
 const CHAR_GAP_END: usize = 0xDFFF;
@@ -222,7 +250,7 @@ impl Finite for char {
 
     fn from_usize(mut i: usize) -> Option<Self> {
         if i >= CHAR_GAP_START {
-            i += CHAR_GAP_SIZE;
+            i = i.checked_add(CHAR_GAP_SIZE)?;
         }
         char::from_u32(i.try_into().ok()?)
     }
@@ -456,8 +484,42 @@ mod test {
 
     use super::*;
 
-    fn test_all<T: Finite + Debug + PartialEq>(expected_elements: usize) {
+    fn test_some<T: Finite + Debug + PartialEq>(expected_elements: usize) {
         assert_eq!(T::INHABITANTS, expected_elements);
+
+        let mut values: Vec<_> = (0..1000).collect();
+        for base in [usize::MAX, T::INHABITANTS] {
+            for offset in -10..=10 {
+                if let Some(i) = base.checked_add_signed(offset) {
+                    values.push(i);
+                }
+            }
+        }
+
+        for i in values {
+            match T::from_usize(i) {
+                None => {
+                    assert!(
+                        i >= T::INHABITANTS,
+                        "Got {i}usize -> None, but INHABITANTS={}",
+                        T::INHABITANTS
+                    );
+                }
+                Some(v) => {
+                    assert!(
+                        i < T::INHABITANTS,
+                        "Got {i}usize -> {v:?}, but INHABITANTS={}",
+                        T::INHABITANTS
+                    );
+                    let i2 = v.to_usize();
+                    assert_eq!(i2, i, "{i}usize -> {v:?} -> {i2}usize");
+                }
+            }
+        }
+    }
+
+    fn test_all<T: Finite + Debug + PartialEq>(expected_elements: usize) {
+        test_some::<T>(expected_elements);
 
         for i in 0..T::INHABITANTS {
             let v = T::from_usize(i).unwrap();
@@ -544,9 +606,19 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
-    #[cfg(target_pointer_width = "64")]
     fn test_nonzero_u32() {
-        test_all::<NonZeroU32>(256 * 256 * 256 * 256 - 1);
+        test_all::<NonZeroU32>(usize::try_from(256u64 * 256 * 256 * 256 - 1).unwrap());
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn test_nonzero_u64() {
+        test_some::<NonZeroU64>(usize::try_from(2u128.pow(64) - 1).unwrap());
+    }
+
+    #[test]
+    fn test_nonzero_usize() {
+        test_some::<NonZeroUsize>(usize::try_from(2u128.pow(isize::BITS) - 1).unwrap());
     }
 
     #[test]
@@ -561,9 +633,19 @@ mod test {
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
-    #[cfg(target_pointer_width = "64")]
     fn test_nonzero_i32() {
-        test_all::<NonZeroI32>(256 * 256 * 256 * 256 - 1);
+        test_all::<NonZeroI32>(usize::try_from(256u64 * 256 * 256 * 256 - 1).unwrap());
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn test_nonzero_i64() {
+        test_some::<NonZeroI64>(usize::try_from(2u128.pow(64) - 1).unwrap());
+    }
+
+    #[test]
+    fn test_nonzero_isize() {
+        test_some::<NonZeroIsize>(usize::try_from(2u128.pow(isize::BITS) - 1).unwrap());
     }
 
     #[test]
