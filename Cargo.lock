@@ -188,7 +188,7 @@ checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "exhaustive-map"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "exhaustive-map-macros",
  "ui_test",
