@@ -1,4 +1,4 @@
-//@normalize-stderr-test: "/[^ ]*/src/finite.rs" -> "../src/finite.rs"
+//@normalize-stderr-test: "/[^ ]*/src/finite.rs:\d+:\d+" -> "../src/finite.rs:...:..."
 
 use exhaustive_map::Finite;
 
