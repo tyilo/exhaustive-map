@@ -78,6 +78,22 @@ impl<T> Iterator for IterAll<T> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<T> ExactSizeIterator for IterAll<T> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for IterAll<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
 }
 
 impl<T: ?Sized> Finite for std::marker::PhantomData<T> {

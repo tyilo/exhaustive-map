@@ -305,6 +305,22 @@ impl<'a, V> Iterator for Values<'a, V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<T> ExactSizeIterator for Values<'_, T> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for Values<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
 }
 
 /// A mutable iterator over the values of an [`ExhaustiveMap`].
@@ -318,6 +334,22 @@ impl<'a, V> Iterator for ValuesMut<'a, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<T> ExactSizeIterator for ValuesMut<'_, T> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for ValuesMut<'_, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
     }
 }
 
@@ -333,6 +365,22 @@ impl<V> Iterator for IntoValues<V> {
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<T> ExactSizeIterator for IntoValues<T> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<T> DoubleEndedIterator for IntoValues<T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
+    }
 }
 
 impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
@@ -345,13 +393,29 @@ impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct Iter<'a, K: Finite, V>(std::iter::Zip<IterAll<K>, Values<'a, V>>);
+pub struct Iter<'a, K, V>(std::iter::Zip<IterAll<K>, Values<'a, V>>);
 
-impl<'a, K: Finite, V> Iterator for Iter<'a, K, V> {
+impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (K, &'a V);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<K, V> ExactSizeIterator for Iter<'_, K, V> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for Iter<'_, K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
     }
 }
 
@@ -359,13 +423,29 @@ impl<'a, K: Finite, V> Iterator for Iter<'a, K, V> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter_mut`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct IterMut<'a, K: Finite, V>(std::iter::Zip<IterAll<K>, ValuesMut<'a, V>>);
+pub struct IterMut<'a, K, V>(std::iter::Zip<IterAll<K>, ValuesMut<'a, V>>);
 
-impl<'a, K: Finite, V> Iterator for IterMut<'a, K, V> {
+impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     type Item = (K, &'a mut V);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<K, V> ExactSizeIterator for IterMut<'_, K, V> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IterMut<'_, K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
     }
 }
 
@@ -374,13 +454,29 @@ impl<'a, K: Finite, V> Iterator for IterMut<'a, K, V> {
 /// This `struct` is created by the [`into_iter`](IntoIterator::into_iter) method on [`ExhaustiveMap`]
 /// (provided by the [`IntoIterator`] trait).
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct IntoIter<K: Finite, V>(std::iter::Zip<IterAll<K>, IntoValues<V>>);
+pub struct IntoIter<K, V>(std::iter::Zip<IterAll<K>, IntoValues<V>>);
 
-impl<K: Finite, V> Iterator for IntoIter<K, V> {
+impl<K, V> Iterator for IntoIter<K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.0.len(), Some(self.0.len()))
+    }
+}
+
+impl<K, V> ExactSizeIterator for IntoIter<K, V> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.0.next_back()
     }
 }
 
