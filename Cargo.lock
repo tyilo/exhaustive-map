@@ -191,6 +191,8 @@ name = "exhaustive-map"
 version = "0.2.4"
 dependencies = [
  "exhaustive-map-macros",
+ "serde",
+ "serde_json",
  "ui_test",
 ]
 

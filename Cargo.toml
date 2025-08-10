@@ -23,10 +23,15 @@ categories.workspace = true
 
 [dependencies]
 exhaustive-map-macros = { version = "0.2.2", path = "exhaustive-map-macros" }
+serde = { version = "1.0.219", optional = true }
 
 [[test]]
 name = "ui"
 harness = false
 
 [dev-dependencies]
+serde_json = "1.0.142"
 ui_test = "0.30.2"
+
+[features]
+serde = ["dep:serde"]

@@ -573,6 +573,119 @@ unsafe impl<K: Finite, V> Send for ExhaustiveMap<K, V> where Box<[V]>: Send {}
 // SAFETY: `ExhaustiveMap<K, V>` is just a transparent wrapper around `Box<[V]>`.
 unsafe impl<K: Finite, V> Sync for ExhaustiveMap<K, V> where Box<[V]>: Sync {}
 
+#[cfg(feature = "serde")]
+mod serde_impl {
+    use std::{any::type_name, marker::PhantomData};
+
+    use serde::{
+        de::{Error, Visitor},
+        ser::SerializeMap,
+        Deserialize, Deserializer, Serialize, Serializer,
+    };
+
+    use super::{ExhaustiveMap, Finite};
+
+    impl<K: Finite + Serialize, V: Serialize> Serialize for ExhaustiveMap<K, V> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut map = serializer.serialize_map(Some(K::INHABITANTS))?;
+            for (k, v) in self {
+                map.serialize_entry(&k, v)?;
+            }
+            map.end()
+        }
+    }
+
+    struct MapVisitor<K: Finite, V>(PhantomData<fn() -> ExhaustiveMap<K, V>>);
+    impl<K: Finite, V> MapVisitor<K, V> {
+        fn new() -> Self {
+            Self(PhantomData)
+        }
+    }
+
+    impl<'de, K: Finite + Deserialize<'de>, V: Deserialize<'de>> Visitor<'de> for MapVisitor<K, V> {
+        type Value = ExhaustiveMap<K, V>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(
+                formatter,
+                "an ExhaustiveMap<{}, {}>",
+                type_name::<K>(),
+                type_name::<V>()
+            )
+        }
+
+        fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::MapAccess<'de>,
+        {
+            let mut map: ExhaustiveMap<K, Option<V>> = ExhaustiveMap::default();
+
+            while let Some((key, value)) = access.next_entry::<K, V>()? {
+                map[key] = Some(value);
+            }
+
+            let map = map.try_unwrap_values().map_err(|e| {
+                A::Error::custom(format!(
+                    "ExhaustiveMap<{}, {}>: found entries for {} keys out of {} keys",
+                    type_name::<K>(),
+                    type_name::<V>(),
+                    e.values().filter(|v| v.is_some()).count(),
+                    K::INHABITANTS,
+                ))
+            })?;
+            Ok(map)
+        }
+    }
+
+    impl<'de, K: Finite + Deserialize<'de>, V: Deserialize<'de>> serde::Deserialize<'de>
+        for ExhaustiveMap<K, V>
+    {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            deserializer.deserialize_map(MapVisitor::new())
+        }
+    }
+
+    #[cfg(test)]
+    mod test {
+        use super::*;
+
+        #[derive(Debug, Finite, Serialize, Deserialize)]
+        enum Color {
+            Red,
+            Green,
+            Blue,
+        }
+
+        #[test]
+        fn test_serialize_deserialize() {
+            let map = ExhaustiveMap::<Color, _>::from_usize_fn(|i| i);
+            let json = serde_json::to_string(&map).unwrap();
+            assert_eq!(json, r#"{"Red":0,"Green":1,"Blue":2}"#);
+
+            let deserialized: ExhaustiveMap<Color, usize> = serde_json::from_str(&json).unwrap();
+            assert_eq!(deserialized, map);
+        }
+
+        #[test]
+        fn test_deserialize_missing_entry() {
+            let json = r#"{"Red":0,"Blue":2}"#;
+
+            let err = serde_json::from_str::<ExhaustiveMap<Color, usize>>(&json).unwrap_err();
+            assert!(
+                err.to_string()
+                    .contains("found entries for 2 keys out of 3 key"),
+                "{err:?}"
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
