@@ -287,6 +287,14 @@ impl<K: Finite + Eq + Hash, V, S: BuildHasher + Default> From<ExhaustiveMap<K, V
     }
 }
 
+impl<K: Finite + Ord, V> TryFrom<BTreeMap<K, V>> for ExhaustiveMap<K, V> {
+    type Error = K;
+
+    fn try_from(mut value: BTreeMap<K, V>) -> Result<Self, Self::Error> {
+        Self::try_from_fn(|k| value.remove(&k).ok_or(k))
+    }
+}
+
 impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
     fn from(value: ExhaustiveMap<K, V>) -> Self {
         Self::from_iter(value)
