@@ -14,11 +14,21 @@ struct Output {
 }
 
 fn sum<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) -> Output {
-    let mut output = Output {
-        value: quote!(::exhaustive_map::typenum::consts::U0),
-        bounds: vec![],
+    let mut iter = iter.into_iter();
+    let first = iter.next();
+    let mut output = match first {
+        None => {
+            return Output {
+                value: quote!(::exhaustive_map::typenum::consts::U0),
+                bounds: vec![],
+            };
+        }
+        Some(first) => Output {
+            value: first.borrow().clone(),
+            bounds: vec![],
+        },
     };
-    for v in iter.into_iter() {
+    for v in iter {
         let value = output.value;
         let v = v.borrow();
         output.value = quote! {
@@ -32,11 +42,21 @@ fn sum<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) -
 }
 
 fn prod<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) -> Output {
-    let mut output = Output {
-        value: quote!(::exhaustive_map::typenum::consts::U1),
-        bounds: vec![],
+    let mut iter = iter.into_iter();
+    let first = iter.next();
+    let mut output = match first {
+        None => {
+            return Output {
+                value: quote!(::exhaustive_map::typenum::consts::U1),
+                bounds: vec![],
+            };
+        }
+        Some(first) => Output {
+            value: first.borrow().clone(),
+            bounds: vec![],
+        },
     };
-    for v in iter.into_iter() {
+    for v in iter {
         let value = output.value;
         let v = v.borrow();
         output.value = quote! {
@@ -465,5 +485,50 @@ mod test {
 
         let x = impl_finite(&item_enum.ident.into(), item_enum.generics, &data);
         panic!("{x}");
+    }
+}
+
+// From https://github.com/paholg/typenum/pull/136/files
+use proc_macro2::TokenStream as TokenStream2;
+use syn::parse::{Parse, ParseStream, Result as ParseResult};
+
+struct UnsignedInteger {
+    value: u128,
+}
+
+impl Parse for UnsignedInteger {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let literal = input.parse::<LitInt>()?;
+        let value = literal.base10_parse::<u128>()?;
+
+        let output = UnsignedInteger { value };
+
+        Ok(output)
+    }
+}
+
+#[proc_macro]
+pub fn uint(input: TokenStream) -> TokenStream {
+    let UnsignedInteger { value } = parse_macro_input!(input as UnsignedInteger);
+
+    let tokens = recursive_value_to_typeuint(value);
+    TokenStream::from(tokens)
+}
+
+fn recursive_value_to_typeuint(value: u128) -> TokenStream2 {
+    if value == 0 {
+        quote! {
+            ::exhaustive_map::typenum::uint::UTerm
+        }
+    } else if value & 1 == 1 {
+        let sub_tokens = recursive_value_to_typeuint(value >> 1);
+        quote! {
+            ::exhaustive_map::typenum::uint::UInt<#sub_tokens, ::exhaustive_map::typenum::bit::B1>
+        }
+    } else {
+        let sub_tokens = recursive_value_to_typeuint(value >> 1);
+        quote! {
+            ::exhaustive_map::typenum::uint::UInt<#sub_tokens, ::exhaustive_map::typenum::bit::B0>
+        }
     }
 }

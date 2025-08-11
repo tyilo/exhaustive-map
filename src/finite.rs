@@ -15,9 +15,11 @@ use std::{
 };
 
 pub use exhaustive_map_macros::Finite;
-use exhaustive_map_macros::__impl_tuples;
+use exhaustive_map_macros::{__impl_tuples, uint};
 use generic_array::{
-    typenum::{generic_const_mappings::U, Pow, UInt, UTerm, Unsigned, B1, U0, U1, U2},
+    typenum::{
+        generic_const_mappings::U, Const, Pow, Sub1, ToUInt, UInt, UTerm, Unsigned, B1, U0, U1, U2,
+    },
     ArrayLength, GenericArray,
 };
 
@@ -206,11 +208,10 @@ const fn pow_minus_one(a: usize, b: usize) -> usize {
     res as usize
 }
 
-/*
 macro_rules! impl_unonzero {
     ($type:path) => {
         impl Finite for $type {
-            type INHABITANTS = U<{ pow_minus_one(2, std::mem::size_of::<$type>() * 8) }>;
+            type INHABITANTS = Sub1<<U2 as Pow<U<{ std::mem::size_of::<$type>() * 8 }>>>::Output>;
 
             fn to_usize(&self) -> usize {
                 usize::try_from(self.get()).unwrap() - 1
@@ -233,7 +234,8 @@ impl_unonzero!(NonZeroUsize);
 macro_rules! impl_inonzero {
     ($nonzero_type:path, $itype:path, $utype:path) => {
         impl Finite for $nonzero_type {
-            const INHABITANTS: usize = pow_minus_one(2, std::mem::size_of::<$nonzero_type>() * 8);
+            type INHABITANTS =
+                Sub1<<U2 as Pow<U<{ std::mem::size_of::<$nonzero_type>() * 8 }>>>::Output>;
 
             #[allow(clippy::cast_sign_loss)]
             fn to_usize(&self) -> usize {
@@ -258,16 +260,21 @@ impl_inonzero!(NonZeroI32, i32, u32);
 #[cfg(target_pointer_width = "64")]
 impl_inonzero!(NonZeroI64, i64, u64);
 impl_inonzero!(NonZeroIsize, isize, usize);
-*/
 
-/*
 const CHAR_GAP_START: usize = 0xD800;
 const CHAR_GAP_END: usize = 0xDFFF;
 const CHAR_GAP_SIZE: usize = CHAR_GAP_END - CHAR_GAP_START + 1;
 impl Finite for char {
-    type INHABITANTS = U<{char::MAX as usize + 1 - CHAR_GAP_SIZE}>;
+    type INHABITANTS = uint!(1112064); //U<{char::MAX as usize + 1 - CHAR_GAP_SIZE}>;
 
     fn to_usize(&self) -> usize {
+        const _: () = {
+            assert!(
+                <char as Finite>::INHABITANTS::USIZE == char::MAX as usize + 1 - CHAR_GAP_SIZE,
+                "Wrong INHABITANTS for char"
+            );
+        };
+
         let mut v = *self as usize;
         if v > CHAR_GAP_END {
             v -= CHAR_GAP_SIZE;
@@ -282,7 +289,6 @@ impl Finite for char {
         char::from_u32(i.try_into().ok()?)
     }
 }
-*/
 
 #[cfg(target_pointer_width = "64")]
 impl Finite for f32 {
@@ -317,33 +323,36 @@ macro_rules! impl_from {
 #[cfg(target_pointer_width = "64")]
 impl_from!(std::net::Ipv4Addr, u32);
 
-/*
-impl<const N: usize, T: Finite> Finite for [T; N] {
+impl<const N: usize, T: Finite> Finite for [T; N]
+where
+    Const<N>: ToUInt,
+    T::INHABITANTS: Pow<U<N>>,
+    <T::INHABITANTS as Pow<U<N>>>::Output: ArrayLength,
+{
     type INHABITANTS = <T::INHABITANTS as Pow<U<N>>>::Output;
 
     fn to_usize(&self) -> usize {
         let mut res = 0;
         for v in self.iter().rev() {
-            res *= T::INHABITANTS;
+            res *= T::INHABITANTS::USIZE;
             res += v.to_usize();
         }
         res
     }
 
     fn from_usize(mut i: usize) -> Option<Self> {
-        if i >= Self::INHABITANTS {
+        if i >= Self::INHABITANTS::USIZE {
             None
         } else {
             let arr = std::array::from_fn(|_| {
-                let v = T::from_usize(i % T::INHABITANTS).unwrap();
-                i /= T::INHABITANTS;
+                let v = T::from_usize(i % T::INHABITANTS::USIZE).unwrap();
+                i /= T::INHABITANTS::USIZE;
                 v
             });
             Some(arr)
         }
     }
 }
-*/
 
 impl<T: Finite, N: ArrayLength> Finite for GenericArray<T, N>
 where
@@ -499,17 +508,13 @@ where
     }
 }
 
-// Doesn't work due to https://github.com/rust-lang/rust/issues/132913
-/*
 #[derive(Finite)]
 #[__finite_foreign(Option)]
 enum _Option<T> {
     None,
     Some(T),
 }
-*/
 
-/*
 #[derive(Finite)]
 #[__finite_foreign(Result)]
 enum _Result<T, E> {
@@ -567,7 +572,6 @@ struct _RangeToInclusive<Idx> {
 #[derive(Finite)]
 #[__finite_foreign(std::ops::RangeFull)]
 struct _RangeFull;
-*/
 
 #[cfg(test)]
 mod test {
@@ -689,7 +693,6 @@ mod test {
         test_all::<i32>(256 * 256 * 256 * 256);
     }
 
-    /*
     #[test]
     fn test_nonzero_u8() {
         test_all::<NonZeroU8>(256 - 1);
@@ -748,7 +751,6 @@ mod test {
     fn test_char() {
         test_all::<char>(0x11_0000 - CHAR_GAP_SIZE);
     }
-    */
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
@@ -757,7 +759,6 @@ mod test {
         test_all::<f32>(256usize.pow(4));
     }
 
-    /*
     #[test]
     fn test_u8_arr_0() {
         test_all::<[u8; 0]>(1);
@@ -777,7 +778,6 @@ mod test {
     fn test_unit_arr() {
         test_all::<[(); 100]>(1);
     }
-    */
 
     #[test]
     fn test_tuple_u8_bool() {
@@ -789,21 +789,17 @@ mod test {
         test_all::<(bool, u8)>(512);
     }
 
-    /*
     #[test]
     fn test_cow_arr() {
         test_all::<Cow<[bool; 2]>>(4);
     }
-    */
 
-    /*
     #[test]
     fn test_tuple_and_arr_same_encoding() {
         let i1 = [1u8, 2u8].to_usize();
         let i2 = (1u8, 2u8).to_usize();
         assert_eq!(i1, i2);
     }
-    */
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
@@ -846,7 +842,6 @@ mod test {
         test_all::<EmptyNamedStruct>(1);
     }
 
-    /*
     #[test]
     fn test_derive_named_struct() {
         #[derive(Finite, Debug, PartialEq)]
@@ -857,7 +852,6 @@ mod test {
         }
         test_all::<Struct>(2 * 256 * 3);
     }
-    */
 
     #[test]
     fn test_derive_empty_enum() {
@@ -905,23 +899,10 @@ mod test {
         enum MixedEnum {
             _A,
             _B(u8),
-            _C { _a: bool, _b: u8 },
-        }
-        test_all::<MixedEnum>(1 + 256 + 2 * 256);
-    }
-
-    /*
-    #[test]
-    fn test_derive_mixed_enum() {
-        #[derive(Finite, Debug, PartialEq)]
-        enum MixedEnum {
-            _A,
-            _B(u8),
             _C { _a: Option<bool>, _b: u8 },
         }
         test_all::<MixedEnum>(1 + 256 + 3 * 256);
     }
-    */
 
     #[test]
     fn test_derive_struct_with_non_clone_field() {
