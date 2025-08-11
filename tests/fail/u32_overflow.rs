@@ -1,14 +1,17 @@
 //@normalize-stderr-test: "/[^ ]*/src/finite.rs:\d+:\d+" -> "../src/finite.rs:...:..."
+//@normalize-stderr-test: "long-type-\d+.txt" -> "long-type-n.txt"
 
+use exhaustive_map::generic_array::GenericArray;
+use exhaustive_map::typenum::Unsigned;
 use exhaustive_map::Finite;
 
 pub const SHOULD_OVERFLOW: usize = {
-    const LEN: usize = u32::INHABITANTS;
+    type LEN = <u32 as Finite>::INHABITANTS;
     const _: () = {
-        if LEN as u32 != 0 {
+        if LEN::USIZE as u32 != 0 {
             panic!();
         }
     };
 
-    <[bool; LEN]>::INHABITANTS
+    <GenericArray<bool, LEN> as Finite>::INHABITANTS::USIZE
 };

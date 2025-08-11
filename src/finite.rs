@@ -1,17 +1,25 @@
+#![allow(unused)]
+
 #[cfg(target_pointer_width = "64")]
 use std::num::{NonZeroI64, NonZeroU64};
 use std::{
     borrow::Cow,
+    fmt::Alignment,
     num::{
         NonZeroI16, NonZeroI32, NonZeroI8, NonZeroIsize, NonZeroU16, NonZeroU32, NonZeroU8,
         NonZeroUsize,
     },
+    ops::{Add, Mul},
     rc::Rc,
     sync::Arc,
 };
 
 pub use exhaustive_map_macros::Finite;
 use exhaustive_map_macros::__impl_tuples;
+use generic_array::{
+    typenum::{generic_const_mappings::U, Pow, UInt, UTerm, Unsigned, B1, U0, U1, U2},
+    ArrayLength, GenericArray,
+};
 
 /// Represents a type that has a finite number of inhabitants.
 ///
@@ -21,7 +29,7 @@ use exhaustive_map_macros::__impl_tuples;
 ///
 /// Example:
 /// ```
-/// use exhaustive_map::{Finite, FiniteExt};
+/// use exhaustive_map::{typenum::Unsigned, Finite, FiniteExt};
 ///
 /// #[derive(Finite, Debug, PartialEq)]
 /// enum Color {
@@ -30,7 +38,7 @@ use exhaustive_map_macros::__impl_tuples;
 ///     Blue,
 /// }
 ///
-/// assert_eq!(Color::INHABITANTS, 3);
+/// assert_eq!(<Color as Finite>::INHABITANTS::USIZE, 3);
 /// assert_eq!(Color::from_usize(0), Some(Color::Red));
 /// assert_eq!(Color::from_usize(1), Some(Color::Green));
 /// assert_eq!(Color::from_usize(2), Some(Color::Blue));
@@ -41,7 +49,7 @@ use exhaustive_map_macros::__impl_tuples;
 /// ```
 pub trait Finite: Sized {
     /// The total number of different inhabitants of the type.
-    const INHABITANTS: usize;
+    type INHABITANTS: ArrayLength;
 
     /// Should return a number in the range `0..INHABITANTS`.
     #[must_use]
@@ -58,7 +66,7 @@ pub trait Finite: Sized {
 pub trait FiniteExt: Finite {
     /// An iterator over all inhabitants of the type, ordered by the order provided by [`Finite`].
     fn iter_all() -> IterAll<Self> {
-        IterAll((0..Self::INHABITANTS).map(|i| {
+        IterAll((0..Self::INHABITANTS::USIZE).map(|i| {
             Self::from_usize(i).expect("unexpected None returned from Finite::from_usize in range")
         }))
     }
@@ -97,7 +105,7 @@ impl<T> DoubleEndedIterator for IterAll<T> {
 }
 
 impl<T: ?Sized> Finite for std::marker::PhantomData<T> {
-    const INHABITANTS: usize = 1;
+    type INHABITANTS = U1;
 
     fn to_usize(&self) -> usize {
         0
@@ -112,7 +120,7 @@ impl<T: ?Sized> Finite for std::marker::PhantomData<T> {
 }
 
 impl Finite for bool {
-    const INHABITANTS: usize = 2;
+    type INHABITANTS = U2;
 
     fn to_usize(&self) -> usize {
         usize::from(*self)
@@ -130,7 +138,7 @@ impl Finite for bool {
 macro_rules! impl_uprim {
     ($type:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = <$type>::MAX as usize + 1;
+            type INHABITANTS = U<{ <$type>::MAX as usize + 1 }>;
 
             fn to_usize(&self) -> usize {
                 *self as usize
@@ -151,7 +159,7 @@ impl_uprim!(u32);
 macro_rules! impl_iprim {
     ($itype:path, $utype:path) => {
         impl Finite for $itype {
-            const INHABITANTS: usize = <$utype as Finite>::INHABITANTS;
+            type INHABITANTS = <$utype as Finite>::INHABITANTS;
 
             fn to_usize(&self) -> usize {
                 #[allow(clippy::cast_sign_loss)]
@@ -198,10 +206,11 @@ const fn pow_minus_one(a: usize, b: usize) -> usize {
     res as usize
 }
 
+/*
 macro_rules! impl_unonzero {
     ($type:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = pow_minus_one(2, std::mem::size_of::<$type>() * 8);
+            type INHABITANTS = U<{ pow_minus_one(2, std::mem::size_of::<$type>() * 8) }>;
 
             fn to_usize(&self) -> usize {
                 usize::try_from(self.get()).unwrap() - 1
@@ -249,12 +258,14 @@ impl_inonzero!(NonZeroI32, i32, u32);
 #[cfg(target_pointer_width = "64")]
 impl_inonzero!(NonZeroI64, i64, u64);
 impl_inonzero!(NonZeroIsize, isize, usize);
+*/
 
+/*
 const CHAR_GAP_START: usize = 0xD800;
 const CHAR_GAP_END: usize = 0xDFFF;
 const CHAR_GAP_SIZE: usize = CHAR_GAP_END - CHAR_GAP_START + 1;
 impl Finite for char {
-    const INHABITANTS: usize = char::MAX as usize + 1 - CHAR_GAP_SIZE;
+    type INHABITANTS = U<{char::MAX as usize + 1 - CHAR_GAP_SIZE}>;
 
     fn to_usize(&self) -> usize {
         let mut v = *self as usize;
@@ -271,10 +282,11 @@ impl Finite for char {
         char::from_u32(i.try_into().ok()?)
     }
 }
+*/
 
 #[cfg(target_pointer_width = "64")]
 impl Finite for f32 {
-    const INHABITANTS: usize = u32::INHABITANTS;
+    type INHABITANTS = <u32 as Finite>::INHABITANTS;
 
     fn to_usize(&self) -> usize {
         self.to_bits().to_usize()
@@ -289,7 +301,7 @@ impl Finite for f32 {
 macro_rules! impl_from {
     ($type:path, $from:path) => {
         impl Finite for $type {
-            const INHABITANTS: usize = <$from as Finite>::INHABITANTS;
+            type INHABITANTS = <$from as Finite>::INHABITANTS;
 
             fn to_usize(&self) -> usize {
                 <$from>::from(*self).to_usize()
@@ -305,8 +317,9 @@ macro_rules! impl_from {
 #[cfg(target_pointer_width = "64")]
 impl_from!(std::net::Ipv4Addr, u32);
 
+/*
 impl<const N: usize, T: Finite> Finite for [T; N] {
-    const INHABITANTS: usize = pow(T::INHABITANTS, N);
+    type INHABITANTS = <T::INHABITANTS as Pow<U<N>>>::Output;
 
     fn to_usize(&self) -> usize {
         let mut res = 0;
@@ -330,13 +343,47 @@ impl<const N: usize, T: Finite> Finite for [T; N] {
         }
     }
 }
+*/
+
+impl<T: Finite, N: ArrayLength> Finite for GenericArray<T, N>
+where
+    <T as Finite>::INHABITANTS: Pow<N>,
+    <T::INHABITANTS as Pow<N>>::Output: ArrayLength,
+{
+    type INHABITANTS = <T::INHABITANTS as Pow<N>>::Output;
+
+    fn to_usize(&self) -> usize {
+        let mut res = 0;
+        for v in self.iter().rev() {
+            res *= T::INHABITANTS::USIZE;
+            res += v.to_usize();
+        }
+        res
+    }
+
+    fn from_usize(mut i: usize) -> Option<Self> {
+        if i >= Self::INHABITANTS::USIZE {
+            None
+        } else {
+            Some(
+                (0..N::USIZE)
+                    .map(|_| {
+                        let v = T::from_usize(i % T::INHABITANTS::USIZE).unwrap();
+                        i /= T::INHABITANTS::USIZE;
+                        v
+                    })
+                    .collect(),
+            )
+        }
+    }
+}
 
 __impl_tuples!(16);
 
 macro_rules! impl_deref {
     ($type:path) => {
         impl<T: Finite> Finite for $type {
-            const INHABITANTS: usize = T::INHABITANTS;
+            type INHABITANTS = T::INHABITANTS;
 
             fn to_usize(&self) -> usize {
                 (**self).to_usize()
@@ -354,7 +401,7 @@ impl_deref!(Rc<T>);
 impl_deref!(Arc<T>);
 
 impl<T: Finite + Clone> Finite for Cow<'_, T> {
-    const INHABITANTS: usize = T::INHABITANTS;
+    type INHABITANTS = T::INHABITANTS;
 
     fn to_usize(&self) -> usize {
         (**self).to_usize()
@@ -425,13 +472,44 @@ enum _Alignment {
     Center,
 }
 
+enum Abc<A, B, C> {
+    A(A),
+    B(B),
+    C(C),
+}
+
+impl<A: Finite, B: Finite, C: Finite> Finite for Abc<A, B, C>
+where
+    <A as Finite>::INHABITANTS: Add<<B as Finite>::INHABITANTS>,
+    <<A as Finite>::INHABITANTS as Add<<B as Finite>::INHABITANTS>>::Output:
+        Add<<C as Finite>::INHABITANTS>,
+    <<<A as Finite>::INHABITANTS as Add<<B as Finite>::INHABITANTS>>::Output as Add<
+        <C as Finite>::INHABITANTS,
+    >>::Output: ArrayLength,
+{
+    type INHABITANTS =
+        <<A::INHABITANTS as Add<B::INHABITANTS>>::Output as Add<C::INHABITANTS>>::Output;
+
+    fn to_usize(&self) -> usize {
+        todo!()
+    }
+
+    fn from_usize(i: usize) -> Option<Self> {
+        todo!()
+    }
+}
+
+// Doesn't work due to https://github.com/rust-lang/rust/issues/132913
+/*
 #[derive(Finite)]
 #[__finite_foreign(Option)]
 enum _Option<T> {
     None,
     Some(T),
 }
+*/
 
+/*
 #[derive(Finite)]
 #[__finite_foreign(Result)]
 enum _Result<T, E> {
@@ -489,6 +567,7 @@ struct _RangeToInclusive<Idx> {
 #[derive(Finite)]
 #[__finite_foreign(std::ops::RangeFull)]
 struct _RangeFull;
+*/
 
 #[cfg(test)]
 mod test {
@@ -501,10 +580,10 @@ mod test {
     use super::*;
 
     fn test_some<T: Finite + Debug + PartialEq>(expected_elements: usize) {
-        assert_eq!(T::INHABITANTS, expected_elements);
+        assert_eq!(T::INHABITANTS::USIZE, expected_elements);
 
         let mut values: Vec<_> = (0..1000).collect();
-        for base in [usize::MAX, T::INHABITANTS] {
+        for base in [usize::MAX, T::INHABITANTS::USIZE] {
             for offset in -10..=10 {
                 if let Some(i) = base.checked_add_signed(offset) {
                     values.push(i);
@@ -516,16 +595,16 @@ mod test {
             match T::from_usize(i) {
                 None => {
                     assert!(
-                        i >= T::INHABITANTS,
+                        i >= T::INHABITANTS::USIZE,
                         "Got {i}usize -> None, but INHABITANTS={}",
-                        T::INHABITANTS
+                        T::INHABITANTS::USIZE
                     );
                 }
                 Some(v) => {
                     assert!(
-                        i < T::INHABITANTS,
+                        i < T::INHABITANTS::USIZE,
                         "Got {i}usize -> {v:?}, but INHABITANTS={}",
-                        T::INHABITANTS
+                        T::INHABITANTS::USIZE
                     );
                     let i2 = v.to_usize();
                     assert_eq!(i2, i, "{i}usize -> {v:?} -> {i2}usize");
@@ -537,7 +616,7 @@ mod test {
     fn test_all<T: Finite + Debug + PartialEq>(expected_elements: usize) {
         test_some::<T>(expected_elements);
 
-        for i in 0..T::INHABITANTS {
+        for i in 0..T::INHABITANTS::USIZE {
             let v = T::from_usize(i).unwrap();
             let i2 = v.to_usize();
             assert_eq!(i2, i, "{i}usize -> {v:?} -> {i2}usize");
@@ -549,7 +628,7 @@ mod test {
                     continue;
                 };
                 for i in [n - 1, n, n + 1] {
-                    if i >= T::INHABITANTS {
+                    if i >= T::INHABITANTS::USIZE {
                         assert_eq!(
                             T::from_usize(i),
                             None,
@@ -610,6 +689,7 @@ mod test {
         test_all::<i32>(256 * 256 * 256 * 256);
     }
 
+    /*
     #[test]
     fn test_nonzero_u8() {
         test_all::<NonZeroU8>(256 - 1);
@@ -668,6 +748,7 @@ mod test {
     fn test_char() {
         test_all::<char>(0x11_0000 - CHAR_GAP_SIZE);
     }
+    */
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
@@ -676,6 +757,7 @@ mod test {
         test_all::<f32>(256usize.pow(4));
     }
 
+    /*
     #[test]
     fn test_u8_arr_0() {
         test_all::<[u8; 0]>(1);
@@ -695,6 +777,7 @@ mod test {
     fn test_unit_arr() {
         test_all::<[(); 100]>(1);
     }
+    */
 
     #[test]
     fn test_tuple_u8_bool() {
@@ -706,17 +789,21 @@ mod test {
         test_all::<(bool, u8)>(512);
     }
 
+    /*
     #[test]
     fn test_cow_arr() {
         test_all::<Cow<[bool; 2]>>(4);
     }
+    */
 
+    /*
     #[test]
     fn test_tuple_and_arr_same_encoding() {
         let i1 = [1u8, 2u8].to_usize();
         let i2 = (1u8, 2u8).to_usize();
         assert_eq!(i1, i2);
     }
+    */
 
     #[test]
     #[cfg_attr(debug_assertions, ignore = "too slow in debug build")]
@@ -759,6 +846,7 @@ mod test {
         test_all::<EmptyNamedStruct>(1);
     }
 
+    /*
     #[test]
     fn test_derive_named_struct() {
         #[derive(Finite, Debug, PartialEq)]
@@ -769,6 +857,7 @@ mod test {
         }
         test_all::<Struct>(2 * 256 * 3);
     }
+    */
 
     #[test]
     fn test_derive_empty_enum() {
@@ -816,10 +905,23 @@ mod test {
         enum MixedEnum {
             _A,
             _B(u8),
+            _C { _a: bool, _b: u8 },
+        }
+        test_all::<MixedEnum>(1 + 256 + 2 * 256);
+    }
+
+    /*
+    #[test]
+    fn test_derive_mixed_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum MixedEnum {
+            _A,
+            _B(u8),
             _C { _a: Option<bool>, _b: u8 },
         }
         test_all::<MixedEnum>(1 + 256 + 3 * 256);
     }
+    */
 
     #[test]
     fn test_derive_struct_with_non_clone_field() {
@@ -877,6 +979,7 @@ mod test {
         test_all::<Enum>(2usize.pow(4));
     }
 
+    /*
     #[test]
     fn test_derive_generic() {
         #[derive(Finite, Debug, PartialEq)]
@@ -885,6 +988,7 @@ mod test {
         }
         test_all::<Generic<u8>>(257);
     }
+    */
 
     #[test]
     fn test_derive_generic_lifetime() {

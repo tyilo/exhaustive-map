@@ -1,12 +1,15 @@
 use std::{
+    alloc::Layout,
     borrow::Borrow,
     collections::{BTreeMap, HashMap},
     fmt::Debug,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
-    mem::MaybeUninit,
+    mem::{transmute_copy, ManuallyDrop, MaybeUninit},
     ops::{Index, IndexMut},
 };
+
+use generic_array::{typenum::Unsigned, GenericArray};
 
 use crate::{
     finite::{Finite, FiniteExt},
@@ -31,8 +34,7 @@ use crate::{
 /// ```
 #[repr(transparent)]
 pub struct ExhaustiveMap<K: Finite, V> {
-    // Replace with [V; { K::INHABITANTS }] when Rust supports it
-    array: Box<[V]>,
+    array: GenericArray<V, K::INHABITANTS>,
     _phantom: PhantomData<fn(&K) -> usize>,
 }
 
@@ -81,17 +83,17 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     #[must_use]
     pub fn from_usize_fn(f: impl FnMut(usize) -> V) -> Self {
         Self {
-            array: (0..K::INHABITANTS).map(f).collect(),
+            array: (0..K::INHABITANTS::USIZE).map(f).collect(),
             _phantom: PhantomData,
         }
     }
 
     /// Returns the number of elements in the map.
     ///
-    /// Always equal to `K::INHABITANTS`.
+    /// Always equal to `K::INHABITANTS::USIZE`.
     #[must_use]
     pub const fn len(&self) -> usize {
-        K::INHABITANTS
+        K::INHABITANTS::USIZE
     }
 
     /// Returns `true` if the map contains no elements.
@@ -100,7 +102,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// meaning the type `K` is uninhabitable.
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        K::INHABITANTS == 0
+        self.len() == 0
     }
 
     /// Replace the value stored for `k` with `v`, returning the previous stored value.
@@ -161,7 +163,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// Creates a consuming iterator visiting all the values, ordered by the keys order provided by [`Finite`].
     /// The map cannot be used after calling this.
     pub fn into_values(self) -> IntoValues<V> {
-        IntoValues(self.array.into_vec().into_iter())
+        IntoValues(Box::new(self.array).into_vec().into_iter())
     }
 
     /// An iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
@@ -199,8 +201,7 @@ impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
             return Err(self);
         }
         #[allow(clippy::missing_panics_doc)]
-        let values: Box<[V]> = self
-            .array
+        let values: Box<[V]> = Box::new(self.array)
             .into_vec()
             .into_iter()
             .map(|v| v.unwrap())
@@ -210,6 +211,20 @@ impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
     }
 }
 
+/// # Panics
+///
+/// Panics if `Src` and `Dst` don't have the same layout.
+///
+/// # Safety
+///
+/// Same as for `transmute`.
+unsafe fn transmute_unchecked<Src, Dst>(src: Src) -> Dst {
+    assert_eq!(Layout::new::<Src>(), Layout::new::<Dst>());
+    let src = ManuallyDrop::new(src);
+    // SAFETY: caller ensures this
+    unsafe { transmute_copy::<Src, Dst>(&src) }
+}
+
 impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     /// # Safety
     ///
@@ -217,7 +232,10 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     #[must_use]
     pub unsafe fn assume_init(self) -> ExhaustiveMap<K, V> {
         ExhaustiveMap {
-            array: std::mem::transmute::<Box<[MaybeUninit<V>]>, Box<[V]>>(self.array),
+            array: transmute_unchecked::<
+                GenericArray<MaybeUninit<V>, K::INHABITANTS>,
+                GenericArray<V, K::INHABITANTS>,
+            >(self.array),
             _phantom: PhantomData,
         }
     }
@@ -227,11 +245,11 @@ impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
     type Error = Box<[V]>;
 
     fn try_from(value: Box<[V]>) -> Result<Self, Self::Error> {
-        if value.len() != K::INHABITANTS {
+        if value.len() != K::INHABITANTS::USIZE {
             return Err(value);
         }
         Ok(Self {
-            array: value,
+            array: *GenericArray::try_from_boxed_slice(value).unwrap(),
             _phantom: PhantomData,
         })
     }
@@ -239,7 +257,7 @@ impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
 
 impl<K: Finite, V> From<ExhaustiveMap<K, V>> for Box<[V]> {
     fn from(value: ExhaustiveMap<K, V>) -> Self {
-        value.array
+        Box::new(value.array).into_boxed_slice()
     }
 }
 
@@ -247,11 +265,11 @@ impl<K: Finite, V> TryFrom<Vec<V>> for ExhaustiveMap<K, V> {
     type Error = Vec<V>;
 
     fn try_from(value: Vec<V>) -> Result<Self, Self::Error> {
-        if value.len() != K::INHABITANTS {
+        if value.len() != K::INHABITANTS::USIZE {
             return Err(value);
         }
         Ok(Self {
-            array: value.into(),
+            array: *GenericArray::try_from_vec(value).unwrap(),
             _phantom: PhantomData,
         })
     }
@@ -261,11 +279,11 @@ impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
     type Error = [V; N];
 
     fn try_from(value: [V; N]) -> Result<Self, Self::Error> {
-        if N != K::INHABITANTS {
+        if N != K::INHABITANTS::USIZE {
             return Err(value);
         }
         Ok(Self {
-            array: value.into(),
+            array: GenericArray::try_from_iter(value).unwrap(),
             _phantom: PhantomData,
         })
     }
@@ -580,6 +598,7 @@ impl<K: Finite, V: Hash> Hash for ExhaustiveMap<K, V> {
 mod serde_impl {
     use std::{any::type_name, marker::PhantomData};
 
+    use generic_array::typenum::Unsigned;
     use serde::{
         de::{Error, Visitor},
         ser::SerializeMap,
@@ -593,7 +612,7 @@ mod serde_impl {
         where
             S: Serializer,
         {
-            let mut map = serializer.serialize_map(Some(K::INHABITANTS))?;
+            let mut map = serializer.serialize_map(Some(K::INHABITANTS::USIZE))?;
             for (k, v) in self {
                 map.serialize_entry(&k, v)?;
             }
@@ -636,7 +655,7 @@ mod serde_impl {
                     type_name::<K>(),
                     type_name::<V>(),
                     e.values().filter(|v| v.is_some()).count(),
-                    K::INHABITANTS,
+                    K::INHABITANTS::USIZE,
                 ))
             })?;
             Ok(map)

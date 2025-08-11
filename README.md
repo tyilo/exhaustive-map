@@ -42,7 +42,7 @@ assert_eq!(all, vec![Color::Red, Color::Green, Color::Blue]);
 
 The `Finite` trait can also be implemented manually:
 ```rust
-use exhaustive_map::Finite;
+use exhaustive_map::{Finite, typenum::consts::U3};
 
 #[derive(Debug, PartialEq)]
 enum Color {
@@ -52,7 +52,7 @@ enum Color {
 }
 
 impl Finite for Color {
-    const INHABITANTS: usize = 3;
+    type INHABITANTS = U3;
 
     fn to_usize(&self) -> usize {
         match self {

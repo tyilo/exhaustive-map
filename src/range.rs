@@ -1,3 +1,4 @@
+/*
 use crate::Finite;
 
 /// A `usize` value that is guaranteed to be in the range `A..B`.
@@ -152,3 +153,4 @@ mod test {
         test_range::<InRangeInclusive<1, 3>, _>(1..=3);
     }
 }
+*/
