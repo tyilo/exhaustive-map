@@ -1,15 +1,16 @@
 use std::{
-    alloc::Layout,
     borrow::Borrow,
     collections::{BTreeMap, HashMap},
     fmt::Debug,
     hash::{BuildHasher, Hash},
     marker::PhantomData,
-    mem::{transmute_copy, ManuallyDrop, MaybeUninit},
+    mem::MaybeUninit,
     ops::{Index, IndexMut},
 };
 
-use generic_array::{typenum::Unsigned, GenericArray};
+use generic_array::{
+    functional::FunctionalSequence, sequence::GenericSequence, typenum::Unsigned, GenericArray,
+};
 
 use crate::{
     finite::{Finite, FiniteExt},
@@ -83,7 +84,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     #[must_use]
     pub fn from_usize_fn(f: impl FnMut(usize) -> V) -> Self {
         Self {
-            array: (0..K::INHABITANTS::USIZE).map(f).collect(),
+            array: GenericArray::generate(f),
             _phantom: PhantomData,
         }
     }
@@ -138,7 +139,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     #[must_use]
     pub fn map_values<U>(self, f: impl FnMut(V) -> U) -> ExhaustiveMap<K, U> {
         ExhaustiveMap {
-            array: self.into_values().map(f).collect(),
+            array: self.array.map(f),
             _phantom: PhantomData,
         }
     }
@@ -186,7 +187,10 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     /// called to obtain a map with values of type `V`.
     #[must_use]
     pub fn new_uninit() -> ExhaustiveMap<K, MaybeUninit<V>> {
-        ExhaustiveMap::from_usize_fn(|_| MaybeUninit::uninit())
+        ExhaustiveMap {
+            array: GenericArray::uninit(),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -201,28 +205,8 @@ impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
             return Err(self);
         }
         #[allow(clippy::missing_panics_doc)]
-        let values: Box<[V]> = Box::new(self.array)
-            .into_vec()
-            .into_iter()
-            .map(|v| v.unwrap())
-            .collect();
-        // SAFETY: `values` has the correct length as we used `map`.
-        Ok(unsafe { values.try_into().unwrap_unchecked() })
+        Ok(self.map_values(|v| v.unwrap()))
     }
-}
-
-/// # Panics
-///
-/// Panics if `Src` and `Dst` don't have the same layout.
-///
-/// # Safety
-///
-/// Same as for `transmute`.
-unsafe fn transmute_unchecked<Src, Dst>(src: Src) -> Dst {
-    assert_eq!(Layout::new::<Src>(), Layout::new::<Dst>());
-    let src = ManuallyDrop::new(src);
-    // SAFETY: caller ensures this
-    unsafe { transmute_copy::<Src, Dst>(&src) }
 }
 
 impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
@@ -232,10 +216,8 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     #[must_use]
     pub unsafe fn assume_init(self) -> ExhaustiveMap<K, V> {
         ExhaustiveMap {
-            array: transmute_unchecked::<
-                GenericArray<MaybeUninit<V>, K::INHABITANTS>,
-                GenericArray<V, K::INHABITANTS>,
-            >(self.array),
+            // SAFETY: caller ensures this
+            array: unsafe { GenericArray::assume_init(self.array) },
             _phantom: PhantomData,
         }
     }
@@ -411,7 +393,10 @@ impl<T> DoubleEndedIterator for IntoValues<T> {
 
 impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
     fn default() -> Self {
-        Self::from_fn(|_| V::default())
+        Self {
+            array: GenericArray::default(),
+            _phantom: PhantomData,
+        }
     }
 }
 
