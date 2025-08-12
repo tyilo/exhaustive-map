@@ -447,7 +447,7 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
                 v
             }
         },
-        bounds: vec![],
+        bounds: vec![quote!(#ty: ::exhaustive_map::Finite)],
         inhabitants,
     }
 }

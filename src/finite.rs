@@ -976,7 +976,6 @@ mod test {
         test_all::<Enum>(2usize.pow(4));
     }
 
-    /*
     #[test]
     fn test_derive_generic() {
         #[derive(Finite, Debug, PartialEq)]
@@ -985,7 +984,17 @@ mod test {
         }
         test_all::<Generic<u8>>(257);
     }
-    */
+
+    #[test]
+    fn test_derive_generic_complex() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Generic<A, B, C, D> {
+            _a: Option<A>,
+            _b: Result<B, C>,
+            _c: [D; 10],
+        }
+        test_all::<Generic<(), (), (), ()>>(2 * 2);
+    }
 
     #[test]
     fn test_derive_generic_lifetime() {
