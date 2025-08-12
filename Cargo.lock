@@ -266,6 +266,7 @@ dependencies = [
  "divan",
  "exhaustive-map-macros",
  "generic-array",
+ "regex",
  "serde",
  "serde_json",
  "ui_test",

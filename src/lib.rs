@@ -27,7 +27,7 @@ mod finite;
 mod map;
 mod range;
 
-pub use finite::{Finite, FiniteExt, IterAll};
+pub use finite::{Finite, FiniteExt, FitsInUsize, IterAll};
 //pub use range::{InRange, InRangeBounds, InRangeInclusive};
 pub use generic_array;
 pub use generic_array::typenum;

@@ -88,7 +88,7 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
         let inhabitants = prod(idents.iter().map(|i| quote!(#i::INHABITANTS)));
         let inhabitants_value = inhabitants.value;
         let mut bounds = inhabitants.bounds;
-        bounds.push(quote!(#inhabitants_value: ::exhaustive_map::generic_array::ArrayLength));
+        bounds.push(quote!(#inhabitants_value: ::exhaustive_map::generic_array::ArrayLength + ::exhaustive_map::FitsInUsize));
 
         res.push(
             quote! {
@@ -158,7 +158,7 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
         from_usize,
     } = finite_impl(data);
 
-    bounds.push(quote!(#inhabitants: ::exhaustive_map::generic_array::ArrayLength));
+    bounds.push(quote!(#inhabitants: ::exhaustive_map::generic_array::ArrayLength + ::exhaustive_map::FitsInUsize));
 
     let where_clause = match where_clause {
         None => Some(quote!(where #(#bounds,)*)),

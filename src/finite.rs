@@ -18,7 +18,8 @@ pub use exhaustive_map_macros::Finite;
 use exhaustive_map_macros::{__impl_tuples, uint};
 use generic_array::{
     typenum::{
-        generic_const_mappings::U, Const, Pow, Sub1, ToUInt, UInt, UTerm, Unsigned, B1, U0, U1, U2,
+        generic_const_mappings::U, Const, IsLessOrEqual, LeEq, NonZero, Pow, Sub1, ToUInt, UInt,
+        UTerm, Unsigned, B0, B1, U0, U1, U2, U256, U8,
     },
     ArrayLength, GenericArray,
 };
@@ -51,7 +52,7 @@ use generic_array::{
 /// ```
 pub trait Finite: Sized {
     /// The total number of different inhabitants of the type.
-    type INHABITANTS: ArrayLength;
+    type INHABITANTS: ArrayLength + FitsInUsize;
 
     /// Should return a number in the range `0..INHABITANTS`.
     #[must_use]
@@ -62,6 +63,21 @@ pub trait Finite: Sized {
     /// This should return `Some` if and only if `i < T::INHABITANTS`.
     #[must_use]
     fn from_usize(i: usize) -> Option<Self>;
+}
+
+/// Implemented for [`typenum`] numbers which fits in an `usize`.
+///
+/// The number of inhabitants for a [`Finite`] type must implement this trait.
+pub trait FitsInUsize: sealed::Sealed {}
+impl<T: sealed::Sealed> FitsInUsize for T {}
+
+mod sealed {
+    use crate::typenum::{IsLessOrEqual, Pow, Sub1, Unsigned, B1, U, U256};
+
+    type UsizeMax = Sub1<<U256 as Pow<U<{ std::mem::size_of::<usize>() }>>>::Output>;
+
+    pub trait Sealed {}
+    impl<U: Unsigned> Sealed for U where U: IsLessOrEqual<UsizeMax, Output = B1> {}
 }
 
 /// An extension for [`Finite`] providing the [`iter_all`](FiniteExt::iter_all) method.
@@ -327,7 +343,7 @@ impl<const N: usize, T: Finite> Finite for [T; N]
 where
     Const<N>: ToUInt,
     T::INHABITANTS: Pow<U<N>>,
-    <T::INHABITANTS as Pow<U<N>>>::Output: ArrayLength,
+    <T::INHABITANTS as Pow<U<N>>>::Output: ArrayLength + FitsInUsize,
 {
     type INHABITANTS = <T::INHABITANTS as Pow<U<N>>>::Output;
 
@@ -357,7 +373,7 @@ where
 impl<T: Finite, N: ArrayLength> Finite for GenericArray<T, N>
 where
     <T as Finite>::INHABITANTS: Pow<N>,
-    <T::INHABITANTS as Pow<N>>::Output: ArrayLength,
+    <T::INHABITANTS as Pow<N>>::Output: ArrayLength + FitsInUsize,
 {
     type INHABITANTS = <T::INHABITANTS as Pow<N>>::Output;
 
@@ -494,7 +510,7 @@ where
         Add<<C as Finite>::INHABITANTS>,
     <<<A as Finite>::INHABITANTS as Add<<B as Finite>::INHABITANTS>>::Output as Add<
         <C as Finite>::INHABITANTS,
-    >>::Output: ArrayLength,
+    >>::Output: ArrayLength + FitsInUsize,
 {
     type INHABITANTS =
         <<A::INHABITANTS as Add<B::INHABITANTS>>::Output as Add<C::INHABITANTS>>::Output;
@@ -978,5 +994,14 @@ mod test {
             _a: PhantomData<&'a ()>,
         }
         test_all::<Lifetime>(1);
+    }
+
+    #[test]
+    fn test_derive_max_inhabitants() {
+        #[derive(Finite, Debug, PartialEq)]
+        struct Big {
+            a: NonZeroUsize,
+        }
+        test_some::<Big>(usize::MAX);
     }
 }
