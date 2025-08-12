@@ -33,7 +33,7 @@ use crate::{
 pub struct ExhaustiveMap<K: Finite, V> {
     // Replace with [V; { K::INHABITANTS }] when Rust supports it
     array: Box<[V]>,
-    _phantom: PhantomData<K>,
+    _phantom: PhantomData<fn(&K) -> usize>,
 }
 
 impl<K: Finite, V> ExhaustiveMap<K, V> {
@@ -575,11 +575,6 @@ impl<K: Finite, V: Hash> Hash for ExhaustiveMap<K, V> {
         self.array.hash(state);
     }
 }
-
-// SAFETY: `ExhaustiveMap<K, V>` is just a transparent wrapper around `Box<[V]>`.
-unsafe impl<K: Finite, V> Send for ExhaustiveMap<K, V> where Box<[V]>: Send {}
-// SAFETY: `ExhaustiveMap<K, V>` is just a transparent wrapper around `Box<[V]>`.
-unsafe impl<K: Finite, V> Sync for ExhaustiveMap<K, V> where Box<[V]>: Sync {}
 
 #[cfg(feature = "serde")]
 mod serde_impl {
