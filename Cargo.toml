@@ -11,7 +11,7 @@ categories = ["data-structures"]
 
 [package]
 name = "exhaustive-map"
-version = "0.2.5"
+version = "0.3.0"
 description = "An exhaustive map for types with finite inhabitants"
 readme = "README.md"
 edition.workspace = true
@@ -22,7 +22,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-exhaustive-map-macros = { version = "0.2.2", path = "exhaustive-map-macros" }
+exhaustive-map-macros = { version = "=0.3.0", path = "exhaustive-map-macros" }
 generic-array = { version = "1.2.0", features = ["alloc"] }
 serde = { version = "1.0.219", optional = true }
 
