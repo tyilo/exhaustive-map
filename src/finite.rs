@@ -1,15 +1,11 @@
-#![allow(unused)]
-
 #[cfg(target_pointer_width = "64")]
 use std::num::{NonZeroI64, NonZeroU64};
 use std::{
     borrow::Cow,
-    fmt::Alignment,
     num::{
         NonZeroI16, NonZeroI32, NonZeroI8, NonZeroIsize, NonZeroU16, NonZeroU32, NonZeroU8,
         NonZeroUsize,
     },
-    ops::{Add, Mul},
     rc::Rc,
     sync::Arc,
 };
@@ -17,10 +13,7 @@ use std::{
 pub use exhaustive_map_macros::Finite;
 use exhaustive_map_macros::{__impl_tuples, uint};
 use generic_array::{
-    typenum::{
-        generic_const_mappings::U, Const, IsLessOrEqual, LeEq, NonZero, Pow, Sub1, ToUInt, UInt,
-        UTerm, Unsigned, B0, B1, U0, U1, U2, U256, U8,
-    },
+    typenum::{generic_const_mappings::U, Const, Pow, Sub1, ToUInt, Unsigned, U1, U2},
     ArrayLength, GenericArray,
 };
 
@@ -196,33 +189,6 @@ impl_iprim!(i8, u8);
 impl_iprim!(i16, u16);
 #[cfg(target_pointer_width = "64")]
 impl_iprim!(i32, u32);
-
-const fn pow(a: usize, b: usize) -> usize {
-    if a <= 1 {
-        return a;
-    }
-
-    assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
-    #[allow(clippy::cast_possible_truncation)]
-    let b = b as u32;
-
-    a.pow(b)
-}
-
-const fn pow_minus_one(a: usize, b: usize) -> usize {
-    assert!(a != 0, "-1 doesn't fit in a usize");
-    if a == 1 {
-        return 0;
-    }
-
-    assert!(b <= u32::MAX as usize, "doesn't fit in a usize");
-    #[allow(clippy::cast_possible_truncation)]
-    let b = b as u32;
-
-    let res = (a as u128).pow(b) - 1;
-    assert!(res <= usize::MAX as u128, "doesn't fit in a usize");
-    res as usize
-}
 
 macro_rules! impl_unonzero {
     ($type:path) => {
@@ -495,33 +461,6 @@ enum _Alignment {
     Left,
     Right,
     Center,
-}
-
-enum Abc<A, B, C> {
-    A(A),
-    B(B),
-    C(C),
-}
-
-impl<A: Finite, B: Finite, C: Finite> Finite for Abc<A, B, C>
-where
-    <A as Finite>::INHABITANTS: Add<<B as Finite>::INHABITANTS>,
-    <<A as Finite>::INHABITANTS as Add<<B as Finite>::INHABITANTS>>::Output:
-        Add<<C as Finite>::INHABITANTS>,
-    <<<A as Finite>::INHABITANTS as Add<<B as Finite>::INHABITANTS>>::Output as Add<
-        <C as Finite>::INHABITANTS,
-    >>::Output: ArrayLength + FitsInUsize,
-{
-    type INHABITANTS =
-        <<A::INHABITANTS as Add<B::INHABITANTS>>::Output as Add<C::INHABITANTS>>::Output;
-
-    fn to_usize(&self) -> usize {
-        todo!()
-    }
-
-    fn from_usize(i: usize) -> Option<Self> {
-        todo!()
-    }
 }
 
 #[derive(Finite)]
