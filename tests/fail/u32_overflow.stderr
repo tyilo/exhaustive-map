@@ -13,7 +13,7 @@ error[E0275]: overflow evaluating the requirement `UInt<UInt<UInt<UInt<UInt<UInt
    = note: required for `UInt<UInt<UTerm, B1>, B0>` to implement `PrivatePow<UInt<UTerm, B1>, UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>>`
    = note: required for `UInt<UInt<UTerm, B1>, B0>` to implement `Pow<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>, B0>>`
    = note: required for `GenericArray<bool, UInt<UInt<UInt<UInt<..., ...>, ...>, ...>, ...>>` to implement `Finite`
-   = note: the full name for the type has been written to '/home/tyilo/repos/exhaustive-map/target/ui/0/tests/fail/u32_overflow.long-type-n.txt'
+   = note: the full name for the type has been written to 'long-type-n.txt'
    = note: consider using `--verbose` to print the full type name to the console
 
 error: aborting due to 1 previous error
