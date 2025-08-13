@@ -553,6 +553,8 @@ impl<K: Finite, V: Clone> Clone for ExhaustiveMap<K, V> {
     }
 }
 
+impl<K: Finite, V: Copy> Copy for ExhaustiveMap<K, V> where GenericArray<V, K::INHABITANTS>: Copy {}
+
 impl<K: Finite, V: PartialEq> PartialEq for ExhaustiveMap<K, V> {
     fn eq(&self, other: &Self) -> bool {
         self.array.eq(&other.array)
@@ -702,7 +704,7 @@ mod test {
 
     #[allow(unused)]
     const fn assert_implements_traits<
-        T: Send + Sync + Default + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
+        T: Send + Sync + Default + Clone + Copy + PartialEq + Eq + PartialOrd + Ord + Hash,
     >() {
     }
 
