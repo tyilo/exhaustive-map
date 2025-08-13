@@ -27,6 +27,7 @@ generic-array = { version = "1.2.0", features = ["alloc"] }
 serde = { version = "1.0.219", optional = true }
 
 [features]
+default = ["std"]
 serde = ["dep:serde", "alloc"]
 std = ["alloc"]
 alloc = []
