@@ -42,7 +42,7 @@ pub trait InRangeBounds: Copy + Sized {
     type MIN: Unsigned;
 
     /// The number of values representable.
-    type INHABITANTS: ArrayLength;
+    type INHABITANTS: ArrayLength + FitsInUsize;
 
     /// Creates a value without checking whether the value is in range. This results in undefined behavior if the value is not in range.
     ///
@@ -93,7 +93,7 @@ pub trait InRangeBounds: Copy + Sized {
 impl<A: Unsigned, B: Unsigned> InRangeBounds for InRange<A, B>
 where
     B: Sub<A>,
-    <B as Sub<A>>::Output: ArrayLength,
+    <B as Sub<A>>::Output: ArrayLength + FitsInUsize,
 {
     type MIN = A;
     type INHABITANTS = <B as Sub<A>>::Output;
@@ -114,7 +114,7 @@ impl<A: Unsigned, B: Unsigned> InRangeBounds for InRangeInclusive<A, B>
 where
     B: Sub<A>,
     <B as Sub<A>>::Output: Add<B1>,
-    <<B as Sub<A>>::Output as Add<B1>>::Output: ArrayLength,
+    <<B as Sub<A>>::Output as Add<B1>>::Output: ArrayLength + FitsInUsize,
 {
     type MIN = A;
     type INHABITANTS = <<B as Sub<A>>::Output as Add<B1>>::Output;
