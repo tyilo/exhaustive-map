@@ -927,24 +927,24 @@ mod test {
     #[test]
     fn test_derive_generic_complex() {
         #[derive(Finite, Debug, PartialEq)]
-        struct Generic<A, B, C, D> {
+        struct Generic<const N: usize, A, B, C, D> {
             _a: Option<A>,
             _b: Result<B, C>,
-            _c: [D; 10],
+            _c: [D; N],
         }
-        test_all::<Generic<(), (), (), ()>>(2 * 2);
+        test_all::<Generic<10, (), (), (), ()>>(2 * 2);
     }
 
     #[test]
     fn test_derive_generic_complex_enum() {
         #[derive(Finite, Debug, PartialEq)]
-        enum Generic<A, B, C, D> {
+        enum Generic<const N: usize, A, B, C, D> {
             A(Option<A>),
             B { b: B, c: C },
             C,
-            D([D; 10]),
+            D([D; N]),
         }
-        test_all::<Generic<(), (), (), ()>>(2 + 1 + 1 + 1);
+        test_all::<Generic<10, (), (), (), ()>>(2 + 1 + 1 + 1);
     }
 
     #[test]
