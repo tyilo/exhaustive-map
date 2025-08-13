@@ -8,16 +8,18 @@ use core::{
 };
 
 use generic_array::{
-    functional::FunctionalSequence, sequence::GenericSequence, typenum::Unsigned, ArrayLength,
-    GenericArray, GenericArrayIter,
+    ArrayLength, GenericArray, GenericArrayIter, functional::FunctionalSequence,
+    sequence::GenericSequence, typenum::Unsigned,
 };
 
 use crate::{
-    finite::{Finite, FiniteExt},
     IterAll,
+    finite::{Finite, FiniteExt},
 };
 
-/// A map which is guaranteed to always contain a value for each possible key of type `K`.
+/// A map which is guaranteed to always contain a value for each possible key of
+/// type `K`.
+///
 /// ```
 /// use exhaustive_map::ExhaustiveMap;
 ///
@@ -51,7 +53,8 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         }
     }
 
-    /// Tries to create a map by providing a mapping function from `K` to `Result<V, E>`.
+    /// Tries to create a map by providing a mapping function from `K` to
+    /// `Result<V, E>`.
     ///
     /// # Errors
     ///
@@ -106,7 +109,8 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
         self.len() == 0
     }
 
-    /// Replace the value stored for `k` with `v`, returning the previous stored value.
+    /// Replace the value stored for `k` with `v`, returning the previous stored
+    /// value.
     pub fn replace<Q: Borrow<K>>(&mut self, k: Q, v: V) -> V {
         core::mem::replace(&mut self[k], v)
     }
@@ -117,7 +121,8 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
             .swap(k1.borrow().to_usize(), k2.borrow().to_usize());
     }
 
-    /// Replace the value stored for `k` with the default value of `V`, returning the previous stored value.
+    /// Replace the value stored for `k` with the default value of `V`,
+    /// returning the previous stored value.
     pub fn take<Q: Borrow<K>>(&mut self, k: Q) -> V
     where
         V: Default,
@@ -146,45 +151,54 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
 
     /// An iterator visiting all keys in the order provided by [`Finite`].
     ///
-    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
+    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize)
+    /// for each key.
     pub fn keys() -> IterAll<K> {
         K::iter_all()
     }
 
-    /// An iterator visiting all values stored in the map, ordered by the keys order provided by [`Finite`].
+    /// An iterator visiting all values stored in the map, ordered by the keys
+    /// order provided by [`Finite`].
     pub fn values(&self) -> Values<'_, V> {
         Values(self.array.iter())
     }
 
-    /// A mutable iterator visiting all values stored in the map, ordered by the keys order provided by [`Finite`].
+    /// A mutable iterator visiting all values stored in the map, ordered by the
+    /// keys order provided by [`Finite`].
     pub fn values_mut(&mut self) -> ValuesMut<'_, V> {
         ValuesMut(self.array.iter_mut())
     }
 
-    /// Creates a consuming iterator visiting all the values, ordered by the keys order provided by [`Finite`].
-    /// The map cannot be used after calling this.
+    /// Creates a consuming iterator visiting all the values, ordered by the
+    /// keys order provided by [`Finite`]. The map cannot be used after
+    /// calling this.
     pub fn into_values(self) -> IntoValues<V, K::INHABITANTS> {
         IntoValues(self.array.into_iter())
     }
 
-    /// An iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
+    /// An iterator visiting all entries stored in the map, ordered by the keys
+    /// order provided by [`Finite`].
     ///
-    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
+    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize)
+    /// for each key.
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter(Self::keys().zip(self.values()))
     }
 
-    /// A mutable iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
+    /// A mutable iterator visiting all entries stored in the map, ordered by
+    /// the keys order provided by [`Finite`].
     ///
-    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize) for each key.
+    /// This creates new keys by calling [`K::from_usize`](Finite::from_usize)
+    /// for each key.
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut(Self::keys().zip(self.values_mut()))
     }
 
     /// Creates a map with [`MaybeUninit`] values.
     ///
-    /// After every value have been initialized [`assume_init`](ExhaustiveMap::assume_init) can be
-    /// called to obtain a map with values of type `V`.
+    /// After every value have been initialized
+    /// [`assume_init`](ExhaustiveMap::assume_init) can be called to obtain
+    /// a map with values of type `V`.
     #[must_use]
     pub fn new_uninit() -> ExhaustiveMap<K, MaybeUninit<V>> {
         ExhaustiveMap {
@@ -195,11 +209,13 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
 }
 
 impl<K: Finite, V> ExhaustiveMap<K, Option<V>> {
-    /// Tries to convert an `ExhaustiveMap<K, Option<V>>` to an `ExhaustiveMap<K, V>`.
+    /// Tries to convert an `ExhaustiveMap<K, Option<V>>` to an
+    /// `ExhaustiveMap<K, V>`.
     ///
     /// # Errors
     ///
-    /// If any of the values are `None`, this returns `Err` containing the input map.
+    /// If any of the values are `None`, this returns `Err` containing the input
+    /// map.
     pub fn try_unwrap_values(self) -> Result<ExhaustiveMap<K, V>, ExhaustiveMap<K, Option<V>>> {
         if !self.array.iter().all(Option::is_some) {
             return Err(self);
@@ -226,8 +242,9 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
 #[cfg(feature = "alloc")]
 mod alloc_impls {
     use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
+    use core::marker::PhantomData;
 
-    use super::*;
+    use crate::{ExhaustiveMap, Finite, generic_array::GenericArray, typenum::Unsigned};
 
     impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
         type Error = Box<[V]>;
@@ -294,9 +311,12 @@ mod alloc_impls {
 
 #[cfg(feature = "std")]
 mod std_impls {
-    use std::{collections::HashMap, hash::BuildHasher};
+    use std::{
+        collections::HashMap,
+        hash::{BuildHasher, Hash},
+    };
 
-    use super::*;
+    use crate::{ExhaustiveMap, Finite};
 
     impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
         type Error = K;
@@ -476,8 +496,8 @@ impl<K, V> DoubleEndedIterator for IterMut<'_, K, V> {
 
 /// An owning iterator over the entries of an [`ExhaustiveMap`].
 ///
-/// This `struct` is created by the [`into_iter`](IntoIterator::into_iter) method on [`ExhaustiveMap`]
-/// (provided by the [`IntoIterator`] trait).
+/// This `struct` is created by the [`into_iter`](IntoIterator::into_iter)
+/// method on [`ExhaustiveMap`] (provided by the [`IntoIterator`] trait).
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub struct IntoIter<K: Finite, V>(core::iter::Zip<IterAll<K>, IntoValues<V, K::INHABITANTS>>);
 
@@ -602,9 +622,9 @@ mod serde_impl {
 
     use generic_array::typenum::Unsigned;
     use serde::{
+        Deserialize, Deserializer, Serialize, Serializer,
         de::{Error, Visitor},
         ser::SerializeMap,
-        Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::{ExhaustiveMap, Finite};
@@ -714,7 +734,7 @@ mod serde_impl {
 
 #[cfg(all(test, feature = "std"))]
 mod test {
-    use std::{prelude::rust_2021::*, println};
+    use std::{prelude::rust_2024::*, println};
 
     use super::*;
 

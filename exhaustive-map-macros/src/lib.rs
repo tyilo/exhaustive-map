@@ -4,8 +4,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, Data, DeriveInput, Field, Fields,
-    GenericParam, Generics, Ident, Index, LitInt, Path, Variant,
+    Data, DeriveInput, Field, Fields, GenericParam, Generics, Ident, Index, LitInt, Path, Variant,
+    parse_macro_input, parse_quote, spanned::Spanned,
 };
 
 struct Output {
@@ -93,26 +93,34 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
         res.push(
             quote! {
                 #[automatically_derived]
-                impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite for (#( #idents, )*) where #(#bounds,)* {
+                impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite
+                for (#( #idents, )*)
+                where #(#bounds,)*
+                {
                     type INHABITANTS = #inhabitants_value;
 
                     fn to_usize(&self) -> usize {
                         let mut res = 0;
                         #(
-                            res *= <#rev_idents::INHABITANTS as ::exhaustive_map::typenum::Unsigned>::USIZE;
+                            res *= <#rev_idents::INHABITANTS
+                                as ::exhaustive_map::typenum::Unsigned>::USIZE;
                             res += self.#rev_indices.to_usize();
                         )*
                         res
                     }
 
                     fn from_usize(mut i: usize) -> Option<Self> {
-                        if i >= <Self::INHABITANTS as ::exhaustive_map::typenum::Unsigned>::USIZE {
+                        if i >= <Self::INHABITANTS
+                            as ::exhaustive_map::typenum::Unsigned>::USIZE
+                        {
                             return None;
                         }
                         Some((#(
                             {
-                                let v = #idents::from_usize(i % <#idents::INHABITANTS as ::exhaustive_map::typenum::Unsigned>::USIZE).unwrap();
-                                i /= <#idents::INHABITANTS as ::exhaustive_map::typenum::Unsigned>::USIZE;
+                                let v = #idents::from_usize(i % <#idents::INHABITANTS
+                                    as ::exhaustive_map::typenum::Unsigned>::USIZE).unwrap();
+                                i /= <#idents::INHABITANTS
+                                    as ::exhaustive_map::typenum::Unsigned>::USIZE;
                                 v
                             },
                         )*))
@@ -447,7 +455,9 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
         },
         from_usize: quote_spanned! { field.span() =>
             {
-                let v = <#ty as ::exhaustive_map::Finite>::from_usize(i % <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE).unwrap();
+                let v = <#ty as ::exhaustive_map::Finite>::from_usize(
+                    i % <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE
+                ).unwrap();
                 i /= <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE;
                 v
             }

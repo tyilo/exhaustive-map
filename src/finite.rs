@@ -1,5 +1,5 @@
 pub use exhaustive_map_macros::Finite;
-use generic_array::{typenum::Unsigned, ArrayLength};
+use generic_array::{ArrayLength, typenum::Unsigned};
 
 /// Represents a type that has a finite number of inhabitants.
 ///
@@ -9,7 +9,7 @@ use generic_array::{typenum::Unsigned, ArrayLength};
 ///
 /// Example:
 /// ```
-/// use exhaustive_map::{typenum::Unsigned, Finite, FiniteExt};
+/// use exhaustive_map::{Finite, FiniteExt, typenum::Unsigned};
 ///
 /// #[derive(Finite, Debug, PartialEq)]
 /// enum Color {
@@ -42,14 +42,15 @@ pub trait Finite: Sized {
     fn from_usize(i: usize) -> Option<Self>;
 }
 
-/// Implemented for [`typenum`] numbers which fits in an `usize`.
+/// Implemented for [`typenum`](crate::typenum) numbers which fits in an
+/// `usize`.
 ///
 /// The number of inhabitants for a [`Finite`] type must implement this trait.
 pub trait FitsInUsize: sealed::Sealed {}
 impl<T: sealed::Sealed> FitsInUsize for T {}
 
 mod sealed {
-    use crate::typenum::{IsLessOrEqual, Pow, Sub1, Unsigned, B1, U, U256};
+    use crate::typenum::{B1, IsLessOrEqual, Pow, Sub1, U, U256, Unsigned};
 
     type UsizeMax = Sub1<<U256 as Pow<U<{ size_of::<usize>() }>>>::Output>;
 
@@ -57,9 +58,11 @@ mod sealed {
     impl<U: Unsigned> Sealed for U where U: IsLessOrEqual<UsizeMax, Output = B1> {}
 }
 
-/// An extension for [`Finite`] providing the [`iter_all`](FiniteExt::iter_all) method.
+/// An extension for [`Finite`] providing the [`iter_all`](FiniteExt::iter_all)
+/// method.
 pub trait FiniteExt: Finite {
-    /// An iterator over all inhabitants of the type, ordered by the order provided by [`Finite`].
+    /// An iterator over all inhabitants of the type, ordered by the order
+    /// provided by [`Finite`].
     fn iter_all() -> IterAll<Self> {
         IterAll((0..Self::INHABITANTS::USIZE).map(|i| {
             Self::from_usize(i).expect("unexpected None returned from Finite::from_usize in range")

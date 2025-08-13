@@ -1,7 +1,8 @@
 #![doc = include_str!("../README.md")]
 //! ## Features
 //!
-//! - `serde` - Enables serialization and deserialization of [`ExhaustiveMap`]. Example:
+//! - `serde` - Enables serialization and deserialization of [`ExhaustiveMap`].
+//!   Example:
 //! ```
 //! # #[cfg(feature = "serde")]
 //! # {

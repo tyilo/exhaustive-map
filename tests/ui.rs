@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use ui_test::{
-    color_eyre::eyre::Result, dependencies::DependencyBuilder, run_tests, spanned::Spanned, Config,
+    Config, color_eyre::eyre::Result, dependencies::DependencyBuilder, run_tests, spanned::Spanned,
 };
 
 fn main() -> Result<()> {

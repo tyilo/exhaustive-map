@@ -6,8 +6,8 @@ use core::{
 use generic_array::ArrayLength;
 
 use crate::{
-    typenum::{Unsigned, B1},
     Finite, FitsInUsize,
+    typenum::{B1, Unsigned},
 };
 
 /// A `usize` value that is guaranteed to be in the range `A..B`.
@@ -44,10 +44,12 @@ pub trait InRangeBounds: Copy + Sized {
     /// The number of values representable.
     type INHABITANTS: ArrayLength + FitsInUsize;
 
-    /// Creates a value without checking whether the value is in range. This results in undefined behavior if the value is not in range.
+    /// Creates a value without checking whether the value is in range. This
+    /// results in undefined behavior if the value is not in range.
     ///
     /// # Safety
-    /// `i` must satisfy `Self::MIN <= i` and `i < Self::MIN + Self::INHABITANTS`.
+    /// `i` must satisfy `Self::MIN <= i` and `i < Self::MIN +
+    /// Self::INHABITANTS`.
     #[must_use]
     unsafe fn new_unchecked(i: usize) -> Self;
 
@@ -169,7 +171,7 @@ mod test {
     use std::{fmt::Debug, ops::RangeBounds};
 
     use super::*;
-    use crate::typenum::{Pow, Sub1, U, U0, U1, U256, U3};
+    use crate::typenum::{Pow, Sub1, U, U0, U1, U3, U256};
 
     type UsizeMax = Sub1<<U256 as Pow<U<{ std::mem::size_of::<usize>() }>>>::Output>;
 

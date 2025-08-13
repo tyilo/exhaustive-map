@@ -2,12 +2,13 @@
 members = ["exhaustive-map-macros", "tests"]
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Asger Hautop Drewsen <asger@tyilo.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/tyilo/exhaustive-map"
 keywords = ["exhaustive", "map", "finite", "no-std", "no-std::no-alloc"]
 categories = ["data-structures"]
+rust-version = "1.85"
 
 [package]
 name = "exhaustive-map"

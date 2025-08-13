@@ -4,15 +4,15 @@ use core::{
     marker::PhantomData,
     mem::size_of,
     num::{
-        NonZeroI16, NonZeroI32, NonZeroI8, NonZeroIsize, NonZeroU16, NonZeroU32, NonZeroU8,
+        NonZeroI8, NonZeroI16, NonZeroI32, NonZeroIsize, NonZeroU8, NonZeroU16, NonZeroU32,
         NonZeroUsize,
     },
 };
 
 use exhaustive_map_macros::{__impl_tuples, uint};
 use generic_array::{
-    typenum::{generic_const_mappings::U, Const, Pow, Sub1, ToUInt, Unsigned, U1, U2},
     ArrayLength, GenericArray,
+    typenum::{Const, Pow, Sub1, ToUInt, U1, U2, Unsigned, generic_const_mappings::U},
 };
 
 use crate::{Finite, FitsInUsize};

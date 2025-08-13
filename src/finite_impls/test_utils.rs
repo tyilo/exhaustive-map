@@ -1,6 +1,6 @@
-use std::{fmt::Debug, prelude::rust_2021::*};
+use std::{fmt::Debug, prelude::rust_2024::*};
 
-use crate::{typenum::Unsigned, Finite};
+use crate::{Finite, typenum::Unsigned};
 
 pub(crate) fn test_some<T: Finite + Debug + PartialEq>(expected_elements: usize) {
     assert_eq!(T::INHABITANTS::USIZE, expected_elements);
