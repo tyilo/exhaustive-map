@@ -739,14 +739,12 @@ mod test {
         println!("{m:?}");
     }
 
-    /*
     #[test]
     fn test_conversion() {
         let m: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
         assert_eq!(m[false], 2);
         assert_eq!(m[true], 3);
     }
-    */
 
     #[test]
     fn test_try_unrwap_values() {
