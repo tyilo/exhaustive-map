@@ -5,8 +5,8 @@ use std::{
     ops::Index,
 };
 
-use divan::{black_box, counter::ItemsCount, Bencher};
-use exhaustive_map::{ExhaustiveMap, Finite, FiniteExt};
+use divan::{Bencher, black_box, counter::ItemsCount};
+use exhaustive_map::{ExhaustiveMap, Finite, FiniteExt, typenum::Unsigned};
 
 fn main() {
     divan::main();
@@ -51,15 +51,15 @@ macro_rules! bench {
             use super::*;
 
             #[divan::bench(
-                                                        types = [
-                                                            ExhaustiveMap<$key, $value>,
-                                                            BTreeMap<$key, $value>,
-                                                            HashMap<$key, $value>,
-                                                        ],
-                                                        counters = [
-                                                            ItemsCount::new(<$key>::INHABITANTS),
-                                                        ],
-                                                    )]
+                                        types = [
+                                            ExhaustiveMap<$key, $value>,
+                                            BTreeMap<$key, $value>,
+                                            HashMap<$key, $value>,
+                                        ],
+                                        counters = [
+                                            ItemsCount::new(<$key as Finite>::INHABITANTS::USIZE),
+                                        ],
+                                    )]
             fn sum_index<T: Map<$key, $value>>(bencher: Bencher) {
                 let map = ExhaustiveMap::from_fn($from_fn);
                 let map = &T::from(map);
@@ -75,15 +75,15 @@ macro_rules! bench {
             }
 
             #[divan::bench(
-                                                        types = [
-                                                            ExhaustiveMap<$key, $value>,
-                                                            BTreeMap<$key, $value>,
-                                                            HashMap<$key, $value>,
-                                                        ],
-                                                        counters = [
-                                                            ItemsCount::new(<$key>::INHABITANTS),
-                                                        ],
-                                                    )]
+                                        types = [
+                                            ExhaustiveMap<$key, $value>,
+                                            BTreeMap<$key, $value>,
+                                            HashMap<$key, $value>,
+                                        ],
+                                        counters = [
+                                            ItemsCount::new(<$key as Finite>::INHABITANTS::USIZE),
+                                        ],
+                                    )]
             fn sum_values_iter<T: Map<$key, $value>>(bencher: Bencher) {
                 let map = ExhaustiveMap::from_fn($from_fn);
                 let map = &T::from(map);

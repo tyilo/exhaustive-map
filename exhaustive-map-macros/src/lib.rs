@@ -1,10 +1,73 @@
+use std::borrow::Borrow;
+
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote, quote_spanned};
 use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, Data, DeriveInput, Field, Fields,
-    GenericParam, Generics, Ident, Index, LitInt, Path, Variant,
+    Data, DeriveInput, Field, Fields, GenericParam, Generics, Ident, Index, LitInt, Path, Variant,
+    parse_macro_input, parse_quote, spanned::Spanned,
 };
+
+struct Output {
+    value: proc_macro2::TokenStream,
+    bounds: Vec<proc_macro2::TokenStream>,
+}
+
+fn sum<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) -> Output {
+    let mut iter = iter.into_iter();
+    let first = iter.next();
+    let mut output = match first {
+        None => {
+            return Output {
+                value: quote!(::exhaustive_map::typenum::consts::U0),
+                bounds: vec![],
+            };
+        }
+        Some(first) => Output {
+            value: first.borrow().clone(),
+            bounds: vec![],
+        },
+    };
+    for v in iter {
+        let value = output.value;
+        let v = v.borrow();
+        output.value = quote! {
+            <#value as ::core::ops::Add::<#v>>::Output
+        };
+        output.bounds.push(quote! {
+            #value: ::core::ops::Add::<#v>
+        });
+    }
+    output
+}
+
+fn prod<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) -> Output {
+    let mut iter = iter.into_iter();
+    let first = iter.next();
+    let mut output = match first {
+        None => {
+            return Output {
+                value: quote!(::exhaustive_map::typenum::consts::U1),
+                bounds: vec![],
+            };
+        }
+        Some(first) => Output {
+            value: first.borrow().clone(),
+            bounds: vec![],
+        },
+    };
+    for v in iter {
+        let value = output.value;
+        let v = v.borrow();
+        output.value = quote! {
+            <#value as ::core::ops::Mul::<#v>>::Output
+        };
+        output.bounds.push(quote! {
+            #value: ::core::ops::Mul::<#v>
+        });
+    }
+    output
+}
 
 #[proc_macro]
 pub fn __impl_tuples(input: TokenStream) -> TokenStream {
@@ -22,29 +85,42 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
         let rev_indices = indices.clone().map(Index::from).rev();
         let rev_idents = idents.iter().rev();
 
+        let inhabitants = prod(idents.iter().map(|i| quote!(#i::INHABITANTS)));
+        let inhabitants_value = inhabitants.value;
+        let mut bounds = inhabitants.bounds;
+        bounds.push(quote!(#inhabitants_value: ::exhaustive_map::generic_array::ArrayLength + ::exhaustive_map::FitsInUsize));
+
         res.push(
             quote! {
                 #[automatically_derived]
-                impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite for (#( #idents, )*) {
-                    const INHABITANTS: usize = 1 #( * #idents::INHABITANTS )*;
+                impl <#( #idents: ::exhaustive_map::Finite ),*> ::exhaustive_map::Finite
+                for (#( #idents, )*)
+                where #(#bounds,)*
+                {
+                    type INHABITANTS = #inhabitants_value;
 
                     fn to_usize(&self) -> usize {
                         let mut res = 0;
                         #(
-                            res *= #rev_idents::INHABITANTS;
+                            res *= <#rev_idents::INHABITANTS
+                                as ::exhaustive_map::typenum::Unsigned>::USIZE;
                             res += self.#rev_indices.to_usize();
                         )*
                         res
                     }
 
                     fn from_usize(mut i: usize) -> Option<Self> {
-                        if i >= Self::INHABITANTS {
+                        if i >= <Self::INHABITANTS
+                            as ::exhaustive_map::typenum::Unsigned>::USIZE
+                        {
                             return None;
                         }
                         Some((#(
                             {
-                                let v = #idents::from_usize(i % #idents::INHABITANTS).unwrap();
-                                i /= #idents::INHABITANTS;
+                                let v = #idents::from_usize(i % <#idents::INHABITANTS
+                                    as ::exhaustive_map::typenum::Unsigned>::USIZE).unwrap();
+                                i /= <#idents::INHABITANTS
+                                    as ::exhaustive_map::typenum::Unsigned>::USIZE;
                                 v
                             },
                         )*))
@@ -84,15 +160,23 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let FiniteImpl {
+        mut bounds,
         inhabitants,
         to_usize,
         from_usize,
     } = finite_impl(data);
 
+    bounds.push(quote!(#inhabitants: ::exhaustive_map::generic_array::ArrayLength + ::exhaustive_map::FitsInUsize));
+
+    let where_clause = match where_clause {
+        None => Some(quote!(where #(#bounds,)*)),
+        Some(w) => Some(quote!(#w, #(#bounds,)*)),
+    };
+
     quote! {
         #[automatically_derived]
         impl #impl_generics ::exhaustive_map::Finite for #path #ty_generics #where_clause {
-            const INHABITANTS: usize = #inhabitants;
+            type INHABITANTS = #inhabitants;
 
             #[allow(non_snake_case)]
             fn to_usize(&self) -> usize {
@@ -103,7 +187,7 @@ fn impl_finite(path: &Path, generics: Generics, data: &Data) -> proc_macro2::Tok
             #[allow(clippy::let_unit_value)]
             #[allow(clippy::modulo_one)]
             fn from_usize(mut i: usize) -> Option<Self> {
-                if i >= Self::INHABITANTS {
+                if i >= <Self::INHABITANTS as ::exhaustive_map::typenum::Unsigned>::USIZE {
                     return None;
                 }
                 #from_usize
@@ -124,12 +208,14 @@ fn add_trait_bounds(mut generics: Generics) -> Generics {
 }
 
 struct FiniteImpl {
+    bounds: Vec<proc_macro2::TokenStream>,
     inhabitants: proc_macro2::TokenStream,
     to_usize: proc_macro2::TokenStream,
     from_usize: proc_macro2::TokenStream,
 }
 
 struct FiniteImpls {
+    bounds: Vec<Vec<proc_macro2::TokenStream>>,
     inhabitants: Vec<proc_macro2::TokenStream>,
     to_usize: Vec<proc_macro2::TokenStream>,
     from_usize: Vec<proc_macro2::TokenStream>,
@@ -137,15 +223,18 @@ struct FiniteImpls {
 
 impl FromIterator<FiniteImpl> for FiniteImpls {
     fn from_iter<T: IntoIterator<Item = FiniteImpl>>(iter: T) -> Self {
+        let mut bounds = vec![];
         let mut inhabitants = vec![];
         let mut to_usize = vec![];
         let mut from_usize = vec![];
         for imp in iter {
+            bounds.push(imp.bounds);
             inhabitants.push(imp.inhabitants);
             to_usize.push(imp.to_usize);
             from_usize.push(imp.from_usize);
         }
         FiniteImpls {
+            bounds,
             inhabitants,
             to_usize,
             from_usize,
@@ -157,6 +246,7 @@ fn finite_impl(data: &Data) -> FiniteImpl {
     match *data {
         Data::Struct(ref data) => {
             let FiniteImpl {
+                bounds,
                 inhabitants,
                 to_usize,
                 from_usize,
@@ -183,14 +273,16 @@ fn finite_impl(data: &Data) -> FiniteImpl {
             };
 
             FiniteImpl {
+                bounds,
                 inhabitants,
                 to_usize,
                 from_usize,
             }
         }
         Data::Enum(ref data) => {
-            let mut inhabitants = vec![];
+            let mut partial_inhabitants = vec![];
             let FiniteImpls {
+                bounds,
                 inhabitants,
                 to_usize,
                 from_usize,
@@ -198,14 +290,25 @@ fn finite_impl(data: &Data) -> FiniteImpl {
                 .variants
                 .iter()
                 .map(|v| {
-                    let finite_impl = finite_impl_for_variant(v, quote!(0 #(+ #inhabitants)*));
-                    inhabitants.push(finite_impl.inhabitants.clone());
+                    let finite_impl =
+                        finite_impl_for_variant(v, quote!(0 #(+ <#partial_inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE)*));
+                    partial_inhabitants.push(finite_impl.inhabitants.clone());
                     finite_impl
                 })
                 .collect();
 
+            let mut bounds: Vec<_> = bounds.into_iter().flatten().collect();
+            let Output {
+                value: new_inhabitants,
+                bounds: mut new_bounds,
+            } = sum(&inhabitants);
+            bounds.append(&mut new_bounds);
+            bounds.extend(
+                inhabitants
+                    .iter()
+                    .map(|inhabitants| quote!(#inhabitants: ::exhaustive_map::typenum::Unsigned)),
+            );
             FiniteImpl {
-                inhabitants: quote!(0 #(+ #inhabitants)*),
                 to_usize: quote! {
                     match *v {
                         #(#to_usize,)*
@@ -213,13 +316,15 @@ fn finite_impl(data: &Data) -> FiniteImpl {
                 },
                 from_usize: quote! {
                     #(
-                        if i < #inhabitants {
+                        if i < <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE {
                             return #from_usize;
                         }
-                        i -= #inhabitants;
+                        i -= <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE;
                     )*
                     unreachable!()
                 },
+                bounds,
+                inhabitants: new_inhabitants,
             }
         }
         Data::Union(_) => panic!("Finite can't be derived for unions"),
@@ -229,6 +334,7 @@ fn finite_impl(data: &Data) -> FiniteImpl {
 fn finite_impl_for_variant(variant: &Variant, offset: proc_macro2::TokenStream) -> FiniteImpl {
     let name = &variant.ident;
     let FiniteImpl {
+        bounds,
         inhabitants,
         to_usize,
         from_usize,
@@ -266,6 +372,7 @@ fn finite_impl_for_variant(variant: &Variant, offset: proc_macro2::TokenStream) 
     };
 
     FiniteImpl {
+        bounds,
         inhabitants,
         to_usize,
         from_usize,
@@ -274,6 +381,7 @@ fn finite_impl_for_variant(variant: &Variant, offset: proc_macro2::TokenStream) 
 
 fn finite_impl_for_fields(fields: &Fields, constructor: proc_macro2::TokenStream) -> FiniteImpl {
     let FiniteImpls {
+        bounds,
         mut inhabitants,
         mut to_usize,
         from_usize,
@@ -299,13 +407,20 @@ fn finite_impl_for_fields(fields: &Fields, constructor: proc_macro2::TokenStream
         },
     };
 
+    let mut bounds: Vec<_> = bounds.into_iter().flatten().collect();
+    let Output {
+        value,
+        bounds: mut new_bounds,
+    } = prod(&inhabitants);
+    bounds.append(&mut new_bounds);
     FiniteImpl {
-        inhabitants: quote!(1 #(* #inhabitants)*),
+        bounds,
+        inhabitants: value,
         to_usize: quote! {
             {
                 let mut res = 0;
                 #(
-                    res *= #inhabitants;
+                    res *= <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE;
                     res += #to_usize;
                 )*
                 res
@@ -340,11 +455,14 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
         },
         from_usize: quote_spanned! { field.span() =>
             {
-                let v = <#ty as ::exhaustive_map::Finite>::from_usize(i % #inhabitants).unwrap();
-                i /= #inhabitants;
+                let v = <#ty as ::exhaustive_map::Finite>::from_usize(
+                    i % <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE
+                ).unwrap();
+                i /= <#inhabitants as ::exhaustive_map::typenum::Unsigned>::USIZE;
                 v
             }
         },
+        bounds: vec![quote!(#ty: ::exhaustive_map::Finite)],
         inhabitants,
     }
 }
@@ -352,4 +470,49 @@ fn finite_impl_for_field(field: &Field, i: usize) -> FiniteImpl {
 fn mapped_field_name(ident: &Ident) -> proc_macro2::TokenStream {
     let ident = format_ident!("field_{}", ident);
     quote!(#ident)
+}
+
+// From https://github.com/paholg/typenum/pull/136/files
+use proc_macro2::TokenStream as TokenStream2;
+use syn::parse::{Parse, ParseStream, Result as ParseResult};
+
+struct UnsignedInteger {
+    value: u128,
+}
+
+impl Parse for UnsignedInteger {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
+        let literal = input.parse::<LitInt>()?;
+        let value = literal.base10_parse::<u128>()?;
+
+        let output = UnsignedInteger { value };
+
+        Ok(output)
+    }
+}
+
+#[proc_macro]
+pub fn uint(input: TokenStream) -> TokenStream {
+    let UnsignedInteger { value } = parse_macro_input!(input as UnsignedInteger);
+
+    let tokens = recursive_value_to_typeuint(value);
+    TokenStream::from(tokens)
+}
+
+fn recursive_value_to_typeuint(value: u128) -> TokenStream2 {
+    if value == 0 {
+        quote! {
+            ::exhaustive_map::typenum::uint::UTerm
+        }
+    } else if value & 1 == 1 {
+        let sub_tokens = recursive_value_to_typeuint(value >> 1);
+        quote! {
+            ::exhaustive_map::typenum::uint::UInt<#sub_tokens, ::exhaustive_map::typenum::bit::B1>
+        }
+    } else {
+        let sub_tokens = recursive_value_to_typeuint(value >> 1);
+        quote! {
+            ::exhaustive_map::typenum::uint::UInt<#sub_tokens, ::exhaustive_map::typenum::bit::B0>
+        }
+    }
 }
