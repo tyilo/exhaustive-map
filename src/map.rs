@@ -35,6 +35,16 @@ use crate::{
 /// assert_eq!(map[3], 9999);
 /// assert_eq!(map[7], 103);
 /// ```
+///
+/// # Layout
+///
+/// The layout of `ExhaustiveMap<K, V>` is guaranteed to be the same as `[V; N]`
+/// where `N` is the number of inhabitants of type `K`.
+///
+/// ```
+/// # use exhaustive_map::ExhaustiveMap;
+/// assert_eq!(size_of::<ExhaustiveMap<u8, bool>>(), 256);
+/// ```
 #[repr(transparent)]
 pub struct ExhaustiveMap<K: Finite, V> {
     array: GenericArray<V, K::INHABITANTS>,
