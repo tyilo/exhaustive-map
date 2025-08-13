@@ -6,7 +6,7 @@ edition = "2021"
 authors = ["Asger Hautop Drewsen <asger@tyilo.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/tyilo/exhaustive-map"
-keywords = ["exhaustive", "map", "finite"]
+keywords = ["exhaustive", "map", "finite", "no-std", "no-std::no-alloc"]
 categories = ["data-structures"]
 
 [package]
@@ -27,7 +27,9 @@ generic-array = { version = "1.2.0", features = ["alloc"] }
 serde = { version = "1.0.219", optional = true }
 
 [features]
-serde = ["dep:serde"]
+serde = ["dep:serde", "alloc"]
+std = ["alloc"]
+alloc = []
 
 [dev-dependencies]
 divan = "0.1.21"
@@ -43,3 +45,4 @@ harness = false
 [[bench]]
 name = "map"
 harness = false
+required-features = ["std"]

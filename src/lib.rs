@@ -20,10 +20,18 @@
 //! assert_eq!(json, r#"{"Red":0,"Green":1,"Blue":2}"#);
 //! # }
 //! ```
+#![no_std]
 #![warn(clippy::pedantic)]
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "std")]
+extern crate std;
+
 mod finite;
+mod finite_impls;
 mod map;
 mod range;
 

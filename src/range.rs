@@ -1,4 +1,4 @@
-use std::{
+use core::{
     marker::PhantomData,
     ops::{Add, Sub},
 };
@@ -164,7 +164,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod test {
     use std::{fmt::Debug, ops::RangeBounds};
 

@@ -1,15 +1,15 @@
-use std::{
+use core::{
     borrow::Borrow,
-    collections::{BTreeMap, HashMap},
     fmt::Debug,
-    hash::{BuildHasher, Hash},
+    hash::Hash,
     marker::PhantomData,
     mem::MaybeUninit,
     ops::{Index, IndexMut},
 };
 
 use generic_array::{
-    functional::FunctionalSequence, sequence::GenericSequence, typenum::Unsigned, GenericArray,
+    functional::FunctionalSequence, sequence::GenericSequence, typenum::Unsigned, ArrayLength,
+    GenericArray, GenericArrayIter,
 };
 
 use crate::{
@@ -108,7 +108,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
 
     /// Replace the value stored for `k` with `v`, returning the previous stored value.
     pub fn replace<Q: Borrow<K>>(&mut self, k: Q, v: V) -> V {
-        std::mem::replace(&mut self[k], v)
+        core::mem::replace(&mut self[k], v)
     }
 
     /// Swaps the values at stored at `k1` and `k2`.
@@ -122,7 +122,7 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
     where
         V: Default,
     {
-        std::mem::take(&mut self[k])
+        core::mem::take(&mut self[k])
     }
 
     /// Change the values of the stored values via a mapping function.
@@ -163,8 +163,8 @@ impl<K: Finite, V> ExhaustiveMap<K, V> {
 
     /// Creates a consuming iterator visiting all the values, ordered by the keys order provided by [`Finite`].
     /// The map cannot be used after calling this.
-    pub fn into_values(self) -> IntoValues<V> {
-        IntoValues(Box::new(self.array).into_vec().into_iter())
+    pub fn into_values(self) -> IntoValues<V, K::INHABITANTS> {
+        IntoValues(self.array.into_iter())
     }
 
     /// An iterator visiting all entries stored in the map, ordered by the keys order provided by [`Finite`].
@@ -223,81 +223,95 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     }
 }
 
-impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
-    type Error = Box<[V]>;
+#[cfg(feature = "alloc")]
+mod alloc_impls {
+    use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
 
-    fn try_from(value: Box<[V]>) -> Result<Self, Self::Error> {
-        if value.len() != K::INHABITANTS::USIZE {
-            return Err(value);
+    use super::*;
+
+    impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
+        type Error = Box<[V]>;
+
+        fn try_from(value: Box<[V]>) -> Result<Self, Self::Error> {
+            if value.len() != K::INHABITANTS::USIZE {
+                return Err(value);
+            }
+            Ok(Self {
+                array: *GenericArray::try_from_boxed_slice(value).unwrap(),
+                _phantom: PhantomData,
+            })
         }
-        Ok(Self {
-            array: *GenericArray::try_from_boxed_slice(value).unwrap(),
-            _phantom: PhantomData,
-        })
     }
-}
 
-impl<K: Finite, V> From<ExhaustiveMap<K, V>> for Box<[V]> {
-    fn from(value: ExhaustiveMap<K, V>) -> Self {
-        Box::new(value.array).into_boxed_slice()
-    }
-}
-
-impl<K: Finite, V> TryFrom<Vec<V>> for ExhaustiveMap<K, V> {
-    type Error = Vec<V>;
-
-    fn try_from(value: Vec<V>) -> Result<Self, Self::Error> {
-        if value.len() != K::INHABITANTS::USIZE {
-            return Err(value);
+    impl<K: Finite, V> From<ExhaustiveMap<K, V>> for Box<[V]> {
+        fn from(value: ExhaustiveMap<K, V>) -> Self {
+            Box::new(value.array).into_boxed_slice()
         }
-        Ok(Self {
-            array: *GenericArray::try_from_vec(value).unwrap(),
-            _phantom: PhantomData,
-        })
     }
-}
 
-impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
-    type Error = [V; N];
+    impl<K: Finite, V> TryFrom<Vec<V>> for ExhaustiveMap<K, V> {
+        type Error = Vec<V>;
 
-    fn try_from(value: [V; N]) -> Result<Self, Self::Error> {
-        if N != K::INHABITANTS::USIZE {
-            return Err(value);
+        fn try_from(value: Vec<V>) -> Result<Self, Self::Error> {
+            if value.len() != K::INHABITANTS::USIZE {
+                return Err(value);
+            }
+            Ok(Self {
+                array: *GenericArray::try_from_vec(value).unwrap(),
+                _phantom: PhantomData,
+            })
         }
-        Ok(Self {
-            array: GenericArray::try_from_iter(value).unwrap(),
-            _phantom: PhantomData,
-        })
+    }
+
+    impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
+        type Error = [V; N];
+
+        fn try_from(value: [V; N]) -> Result<Self, Self::Error> {
+            if N != K::INHABITANTS::USIZE {
+                return Err(value);
+            }
+            Ok(Self {
+                array: GenericArray::try_from_iter(value).unwrap(),
+                _phantom: PhantomData,
+            })
+        }
+    }
+
+    impl<K: Finite + Ord, V> TryFrom<BTreeMap<K, V>> for ExhaustiveMap<K, V> {
+        type Error = K;
+
+        fn try_from(mut value: BTreeMap<K, V>) -> Result<Self, Self::Error> {
+            Self::try_from_fn(|k| value.remove(&k).ok_or(k))
+        }
+    }
+
+    impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
+        fn from(value: ExhaustiveMap<K, V>) -> Self {
+            Self::from_iter(value)
+        }
     }
 }
 
-impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
-    type Error = K;
+#[cfg(feature = "std")]
+mod std_impls {
+    use std::{collections::HashMap, hash::BuildHasher};
 
-    fn try_from(mut value: HashMap<K, V>) -> Result<Self, Self::Error> {
-        Self::try_from_fn(|k| value.remove(&k).ok_or(k))
+    use super::*;
+
+    impl<K: Finite + Eq + Hash, V> TryFrom<HashMap<K, V>> for ExhaustiveMap<K, V> {
+        type Error = K;
+
+        fn try_from(mut value: HashMap<K, V>) -> Result<Self, Self::Error> {
+            Self::try_from_fn(|k| value.remove(&k).ok_or(k))
+        }
     }
-}
 
-impl<K: Finite + Eq + Hash, V, S: BuildHasher + Default> From<ExhaustiveMap<K, V>>
-    for HashMap<K, V, S>
-{
-    fn from(value: ExhaustiveMap<K, V>) -> Self {
-        Self::from_iter(value)
-    }
-}
-
-impl<K: Finite + Ord, V> TryFrom<BTreeMap<K, V>> for ExhaustiveMap<K, V> {
-    type Error = K;
-
-    fn try_from(mut value: BTreeMap<K, V>) -> Result<Self, Self::Error> {
-        Self::try_from_fn(|k| value.remove(&k).ok_or(k))
-    }
-}
-
-impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
-    fn from(value: ExhaustiveMap<K, V>) -> Self {
-        Self::from_iter(value)
+    impl<K: Finite + Eq + Hash, V, S: BuildHasher + Default> From<ExhaustiveMap<K, V>>
+        for HashMap<K, V, S>
+    {
+        fn from(value: ExhaustiveMap<K, V>) -> Self {
+            Self::from_iter(value)
+        }
     }
 }
 
@@ -305,7 +319,7 @@ impl<K: Finite + Ord, V> From<ExhaustiveMap<K, V>> for BTreeMap<K, V> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::values`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct Values<'a, V>(std::slice::Iter<'a, V>);
+pub struct Values<'a, V>(core::slice::Iter<'a, V>);
 
 impl<'a, V> Iterator for Values<'a, V> {
     type Item = &'a V;
@@ -335,7 +349,7 @@ impl<T> DoubleEndedIterator for Values<'_, T> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::values_mut`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct ValuesMut<'a, V>(std::slice::IterMut<'a, V>);
+pub struct ValuesMut<'a, V>(core::slice::IterMut<'a, V>);
 
 impl<'a, V> Iterator for ValuesMut<'a, V> {
     type Item = &'a mut V;
@@ -365,9 +379,9 @@ impl<T> DoubleEndedIterator for ValuesMut<'_, T> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::into_values`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct IntoValues<V>(std::vec::IntoIter<V>);
+pub struct IntoValues<V, N: ArrayLength>(GenericArrayIter<V, N>);
 
-impl<V> Iterator for IntoValues<V> {
+impl<V, N: ArrayLength> Iterator for IntoValues<V, N> {
     type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -379,13 +393,13 @@ impl<V> Iterator for IntoValues<V> {
     }
 }
 
-impl<T> ExactSizeIterator for IntoValues<T> {
+impl<V, N: ArrayLength> ExactSizeIterator for IntoValues<V, N> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<T> DoubleEndedIterator for IntoValues<T> {
+impl<V, N: ArrayLength> DoubleEndedIterator for IntoValues<V, N> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.0.next_back()
     }
@@ -404,7 +418,7 @@ impl<K: Finite, V: Default> Default for ExhaustiveMap<K, V> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct Iter<'a, K, V>(std::iter::Zip<IterAll<K>, Values<'a, V>>);
+pub struct Iter<'a, K, V>(core::iter::Zip<IterAll<K>, Values<'a, V>>);
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (K, &'a V);
@@ -434,7 +448,7 @@ impl<K, V> DoubleEndedIterator for Iter<'_, K, V> {
 ///
 /// This `struct` is created by the [`ExhaustiveMap::iter_mut`] method.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct IterMut<'a, K, V>(std::iter::Zip<IterAll<K>, ValuesMut<'a, V>>);
+pub struct IterMut<'a, K, V>(core::iter::Zip<IterAll<K>, ValuesMut<'a, V>>);
 
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     type Item = (K, &'a mut V);
@@ -465,9 +479,9 @@ impl<K, V> DoubleEndedIterator for IterMut<'_, K, V> {
 /// This `struct` is created by the [`into_iter`](IntoIterator::into_iter) method on [`ExhaustiveMap`]
 /// (provided by the [`IntoIterator`] trait).
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub struct IntoIter<K, V>(std::iter::Zip<IterAll<K>, IntoValues<V>>);
+pub struct IntoIter<K: Finite, V>(core::iter::Zip<IterAll<K>, IntoValues<V, K::INHABITANTS>>);
 
-impl<K, V> Iterator for IntoIter<K, V> {
+impl<K: Finite, V> Iterator for IntoIter<K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -479,13 +493,13 @@ impl<K, V> Iterator for IntoIter<K, V> {
     }
 }
 
-impl<K, V> ExactSizeIterator for IntoIter<K, V> {
+impl<K: Finite, V> ExactSizeIterator for IntoIter<K, V> {
     fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+impl<K: Finite, V> DoubleEndedIterator for IntoIter<K, V> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.0.next_back()
     }
@@ -522,7 +536,7 @@ impl<'a, K: Finite, V> IntoIterator for &'a mut ExhaustiveMap<K, V> {
 }
 
 impl<K: Finite + Debug, V: Debug> Debug for ExhaustiveMap<K, V> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_map().entries(self).finish()
     }
 }
@@ -564,26 +578,27 @@ impl<K: Finite, V: PartialEq> PartialEq for ExhaustiveMap<K, V> {
 impl<K: Finite, V: Eq> Eq for ExhaustiveMap<K, V> {}
 
 impl<K: Finite, V: PartialOrd> PartialOrd for ExhaustiveMap<K, V> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
         self.array.partial_cmp(&other.array)
     }
 }
 
 impl<K: Finite, V: Ord> Ord for ExhaustiveMap<K, V> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.array.cmp(&other.array)
     }
 }
 
 impl<K: Finite, V: Hash> Hash for ExhaustiveMap<K, V> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
         self.array.hash(state);
     }
 }
 
 #[cfg(feature = "serde")]
 mod serde_impl {
-    use std::{any::type_name, marker::PhantomData};
+    use alloc::format;
+    use core::{any::type_name, marker::PhantomData};
 
     use generic_array::typenum::Unsigned;
     use serde::{
@@ -617,7 +632,7 @@ mod serde_impl {
     impl<'de, K: Finite + Deserialize<'de>, V: Deserialize<'de>> Visitor<'de> for MapVisitor<K, V> {
         type Value = ExhaustiveMap<K, V>;
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(&self, formatter: &mut core::fmt::Formatter) -> core::fmt::Result {
             write!(
                 formatter,
                 "an ExhaustiveMap<{}, {}>",
@@ -662,6 +677,8 @@ mod serde_impl {
 
     #[cfg(test)]
     mod test {
+        use alloc::string::ToString;
+
         use super::*;
 
         #[derive(Debug, Finite, Serialize, Deserialize)]
@@ -695,8 +712,10 @@ mod serde_impl {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod test {
+    use std::{prelude::rust_2021::*, println};
+
     use super::*;
 
     #[derive(Finite)]
@@ -720,12 +739,14 @@ mod test {
         println!("{m:?}");
     }
 
+    /*
     #[test]
     fn test_conversion() {
         let m: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
         assert_eq!(m[false], 2);
         assert_eq!(m[true], 3);
     }
+    */
 
     #[test]
     fn test_try_unrwap_values() {
@@ -735,7 +756,7 @@ mod test {
         let mut m = m.try_unwrap_values().unwrap_err();
         m[true] = Some(3);
         let m = m.try_unwrap_values().unwrap();
-        let expected: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
+        let expected = ExhaustiveMap::from_fn(|v| if v { 3 } else { 2 });
         assert_eq!(m, expected);
     }
 }

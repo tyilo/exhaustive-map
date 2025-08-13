@@ -6,7 +6,7 @@ use std::{
 };
 
 use divan::{black_box, counter::ItemsCount, Bencher};
-use exhaustive_map::{ExhaustiveMap, Finite, FiniteExt};
+use exhaustive_map::{typenum::Unsigned, ExhaustiveMap, Finite, FiniteExt};
 
 fn main() {
     divan::main();
@@ -57,7 +57,7 @@ macro_rules! bench {
                                                             HashMap<$key, $value>,
                                                         ],
                                                         counters = [
-                                                            ItemsCount::new(<$key>::INHABITANTS),
+                                                            ItemsCount::new(<$key as Finite>::INHABITANTS::USIZE),
                                                         ],
                                                     )]
             fn sum_index<T: Map<$key, $value>>(bencher: Bencher) {
@@ -81,7 +81,7 @@ macro_rules! bench {
                                                             HashMap<$key, $value>,
                                                         ],
                                                         counters = [
-                                                            ItemsCount::new(<$key>::INHABITANTS),
+                                                            ItemsCount::new(<$key as Finite>::INHABITANTS::USIZE),
                                                         ],
                                                     )]
             fn sum_values_iter<T: Map<$key, $value>>(bencher: Bencher) {
