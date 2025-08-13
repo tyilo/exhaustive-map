@@ -28,9 +28,8 @@ mod map;
 mod range;
 
 pub use finite::{Finite, FiniteExt, FitsInUsize, IterAll};
-//pub use range::{InRange, InRangeBounds, InRangeInclusive};
-pub use generic_array;
-pub use generic_array::typenum;
+pub use generic_array::{self, typenum};
 pub use map::{ExhaustiveMap, IntoIter, IntoValues, Iter, IterMut, Values, ValuesMut};
+pub use range::{InRange, InRangeBounds, InRangeInclusive};
 
 extern crate self as exhaustive_map;
