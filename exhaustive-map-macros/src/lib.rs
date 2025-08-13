@@ -295,6 +295,11 @@ fn finite_impl(data: &Data) -> FiniteImpl {
                 bounds: mut new_bounds,
             } = sum(&inhabitants);
             bounds.append(&mut new_bounds);
+            bounds.extend(
+                inhabitants
+                    .iter()
+                    .map(|inhabitants| quote!(#inhabitants: ::exhaustive_map::typenum::Unsigned)),
+            );
             FiniteImpl {
                 to_usize: quote! {
                     match *v {

@@ -936,6 +936,18 @@ mod test {
     }
 
     #[test]
+    fn test_derive_generic_complex_enum() {
+        #[derive(Finite, Debug, PartialEq)]
+        enum Generic<A, B, C, D> {
+            A(Option<A>),
+            B { b: B, c: C },
+            C,
+            D([D; 10]),
+        }
+        test_all::<Generic<(), (), (), ()>>(2 + 1 + 1 + 1);
+    }
+
+    #[test]
     fn test_derive_generic_lifetime() {
         #[derive(Finite, Debug, PartialEq)]
         struct Lifetime<'a> {
