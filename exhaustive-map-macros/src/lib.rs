@@ -462,37 +462,6 @@ fn mapped_field_name(ident: &Ident) -> proc_macro2::TokenStream {
     quote!(#ident)
 }
 
-#[cfg(test)]
-mod test {
-    use syn::{
-        parse_quote,
-        token::{Brace, Enum},
-        DataEnum, ItemEnum,
-    };
-
-    use super::*;
-
-    #[test]
-    fn test_derive() {
-        let item_enum: ItemEnum = parse_quote! {
-            enum Color {
-                Red,
-                Green,
-                Blue,
-            }
-        };
-
-        let data = Data::Enum(DataEnum {
-            enum_token: item_enum.enum_token,
-            brace_token: item_enum.brace_token,
-            variants: item_enum.variants,
-        });
-
-        let x = impl_finite(&item_enum.ident.into(), item_enum.generics, &data);
-        panic!("{x}");
-    }
-}
-
 // From https://github.com/paholg/typenum/pull/136/files
 use proc_macro2::TokenStream as TokenStream2;
 use syn::parse::{Parse, ParseStream, Result as ParseResult};

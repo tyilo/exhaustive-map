@@ -276,7 +276,6 @@ dependencies = [
 name = "exhaustive-map-macros"
 version = "0.2.2"
 dependencies = [
- "prettyplease",
  "proc-macro2",
  "quote",
  "syn",
@@ -456,16 +455,6 @@ checksum = "abec3fb083c10660b3854367697da94c674e9e82aa7511014dc958beeb7215e9"
 dependencies = [
  "owo-colors 3.5.0",
  "pad",
-]
-
-[[package]]
-name = "prettyplease"
-version = "0.2.36"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff24dfcda44452b9816fff4cd4227e1bb73ff5a2f1bc1105aa92fb8565ce44d2"
-dependencies = [
- "proc-macro2",
- "syn",
 ]
 
 [[package]]
