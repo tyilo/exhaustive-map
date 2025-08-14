@@ -249,6 +249,16 @@ impl<K: Finite, V> ExhaustiveMap<K, MaybeUninit<V>> {
     }
 }
 
+impl<K: Finite, V> FromIterator<(K, V)> for ExhaustiveMap<K, Option<V>> {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut map = ExhaustiveMap::default();
+        for (k, v) in iter {
+            map[k] = Some(v);
+        }
+        map
+    }
+}
+
 #[cfg(feature = "alloc")]
 mod alloc_impls {
     use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
@@ -317,6 +327,12 @@ mod alloc_impls {
             Self::from_iter(value)
         }
     }
+
+    impl<K: Finite + Ord, V> From<BTreeMap<K, V>> for ExhaustiveMap<K, Option<V>> {
+        fn from(mut value: BTreeMap<K, V>) -> Self {
+            Self::from_fn(|k| value.remove(&k))
+        }
+    }
 }
 
 #[cfg(feature = "std")]
@@ -341,6 +357,12 @@ mod std_impls {
     {
         fn from(value: ExhaustiveMap<K, V>) -> Self {
             Self::from_iter(value)
+        }
+    }
+
+    impl<K: Finite + Eq + Hash, V> From<HashMap<K, V>> for ExhaustiveMap<K, Option<V>> {
+        fn from(mut value: HashMap<K, V>) -> Self {
+            Self::from_fn(|k| value.remove(&k))
         }
     }
 }

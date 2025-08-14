@@ -30,7 +30,8 @@ use generic_array::{ArrayLength, typenum::Unsigned};
 pub trait Finite: Sized {
     /// The total number of different inhabitants of the type.
     ///
-    /// This is a [`typenum::Unsigned`](crate::typenum::Unsigned) type-level number.
+    /// This is a [`typenum::Unsigned`](crate::typenum::Unsigned) type-level
+    /// number.
     type INHABITANTS: ArrayLength + FitsInUsize;
 
     /// Should return a number in the range `0..INHABITANTS`.
