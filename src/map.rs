@@ -261,58 +261,9 @@ impl<K: Finite, V> FromIterator<(K, V)> for ExhaustiveMap<K, Option<V>> {
 
 #[cfg(feature = "alloc")]
 mod alloc_impls {
-    use alloc::{boxed::Box, collections::BTreeMap, vec::Vec};
-    use core::marker::PhantomData;
+    use alloc::collections::BTreeMap;
 
-    use crate::{ExhaustiveMap, Finite, generic_array::GenericArray, typenum::Unsigned};
-
-    impl<K: Finite, V> TryFrom<Box<[V]>> for ExhaustiveMap<K, V> {
-        type Error = Box<[V]>;
-
-        fn try_from(value: Box<[V]>) -> Result<Self, Self::Error> {
-            if value.len() != K::INHABITANTS::USIZE {
-                return Err(value);
-            }
-            Ok(Self {
-                array: *GenericArray::try_from_boxed_slice(value).unwrap(),
-                _phantom: PhantomData,
-            })
-        }
-    }
-
-    impl<K: Finite, V> From<ExhaustiveMap<K, V>> for Box<[V]> {
-        fn from(value: ExhaustiveMap<K, V>) -> Self {
-            Box::new(value.array).into_boxed_slice()
-        }
-    }
-
-    impl<K: Finite, V> TryFrom<Vec<V>> for ExhaustiveMap<K, V> {
-        type Error = Vec<V>;
-
-        fn try_from(value: Vec<V>) -> Result<Self, Self::Error> {
-            if value.len() != K::INHABITANTS::USIZE {
-                return Err(value);
-            }
-            Ok(Self {
-                array: *GenericArray::try_from_vec(value).unwrap(),
-                _phantom: PhantomData,
-            })
-        }
-    }
-
-    impl<const N: usize, K: Finite, V> TryFrom<[V; N]> for ExhaustiveMap<K, V> {
-        type Error = [V; N];
-
-        fn try_from(value: [V; N]) -> Result<Self, Self::Error> {
-            if N != K::INHABITANTS::USIZE {
-                return Err(value);
-            }
-            Ok(Self {
-                array: GenericArray::try_from_iter(value).unwrap(),
-                _phantom: PhantomData,
-            })
-        }
-    }
+    use crate::{ExhaustiveMap, Finite};
 
     impl<K: Finite + Ord, V> TryFrom<BTreeMap<K, V>> for ExhaustiveMap<K, V> {
         type Error = K;
@@ -792,8 +743,9 @@ mod test {
     }
 
     #[test]
-    fn test_conversion() {
-        let m: ExhaustiveMap<bool, u8> = [2, 3].try_into().unwrap();
+    fn test_from_iter() {
+        let m: ExhaustiveMap<bool, Option<u8>> = [(false, 2u8), (true, 3)].into_iter().collect();
+        let m = m.try_unwrap_values().unwrap();
         assert_eq!(m[false], 2);
         assert_eq!(m[true], 3);
     }
