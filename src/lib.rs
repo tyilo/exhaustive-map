@@ -1,6 +1,8 @@
 #![doc = include_str!("../README.md")]
 //! ## Features
 //!
+//! - `std` (default) - Enables support for `std`.
+//! - `alloc` (default) - Enables support for `alloc`.
 //! - `serde` - Enables serialization and deserialization of [`ExhaustiveMap`].
 //!   Example:
 //! ```

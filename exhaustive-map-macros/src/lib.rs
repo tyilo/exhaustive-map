@@ -69,13 +69,14 @@ fn prod<T: Borrow<proc_macro2::TokenStream>>(iter: impl IntoIterator<Item = T>) 
     output
 }
 
+#[doc(hidden)]
 #[proc_macro]
 pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     let v = parse_macro_input!(input as LitInt);
     let n: usize = v.base10_parse().unwrap();
 
-    let mut res = Vec::<TokenStream>::new();
-    for k in 0..=n {
+    let mut res: Vec<TokenStream> = vec![];
+    for k in 1..=n {
         let indices = 0..k;
         let idents: Vec<_> = indices
             .clone()
@@ -133,6 +134,7 @@ pub fn __impl_tuples(input: TokenStream) -> TokenStream {
     res.into_iter().collect()
 }
 
+/// Derives the `Finite` trait for a type.
 #[proc_macro_derive(Finite, attributes(__finite_foreign))]
 pub fn finite_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -491,8 +493,9 @@ impl Parse for UnsignedInteger {
     }
 }
 
+#[doc(hidden)]
 #[proc_macro]
-pub fn uint(input: TokenStream) -> TokenStream {
+pub fn __uint(input: TokenStream) -> TokenStream {
     let UnsignedInteger { value } = parse_macro_input!(input as UnsignedInteger);
 
     let tokens = recursive_value_to_typeuint(value);

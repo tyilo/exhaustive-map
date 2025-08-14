@@ -22,6 +22,9 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+
 [dependencies]
 exhaustive-map-macros = { version = "=0.3.0", path = "exhaustive-map-macros" }
 generic-array = { version = "1.2.0", features = ["alloc"] }

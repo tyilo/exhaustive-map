@@ -9,13 +9,28 @@ use core::{
     },
 };
 
-use exhaustive_map_macros::{__impl_tuples, uint};
+use exhaustive_map_macros::{__impl_tuples, __uint};
 use generic_array::{
     ArrayLength, GenericArray,
     typenum::{Const, Pow, Sub1, ToUInt, U1, U2, Unsigned, generic_const_mappings::U},
 };
 
 use crate::{Finite, FitsInUsize};
+
+impl Finite for () {
+    type INHABITANTS = U1;
+
+    fn to_usize(&self) -> usize {
+        0
+    }
+
+    fn from_usize(i: usize) -> Option<Self> {
+        match i {
+            0 => Some(()),
+            _ => None,
+        }
+    }
+}
 
 impl<T: ?Sized> Finite for PhantomData<T> {
     type INHABITANTS = U1;
@@ -148,7 +163,7 @@ const CHAR_GAP_START: usize = 0xD800;
 const CHAR_GAP_END: usize = 0xDFFF;
 const CHAR_GAP_SIZE: usize = CHAR_GAP_END - CHAR_GAP_START + 1;
 impl Finite for char {
-    type INHABITANTS = uint!(1112064); //U<{char::MAX as usize + 1 - CHAR_GAP_SIZE}>;
+    type INHABITANTS = __uint!(1112064); //U<{char::MAX as usize + 1 - CHAR_GAP_SIZE}>;
 
     fn to_usize(&self) -> usize {
         const _: () = {

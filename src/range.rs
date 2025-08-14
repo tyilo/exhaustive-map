@@ -37,6 +37,7 @@ where
     _phantom: PhantomData<(A, B)>,
 }
 
+/// Common methods for [`InRange`] and [`InRangeInclusive`].
 pub trait InRangeBounds: Copy + Sized {
     /// The smallest value representable (if `INHABITANTS` is non-zero).
     type MIN: Unsigned;
